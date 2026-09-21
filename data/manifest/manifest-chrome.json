@@ -9,7 +9,8 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting", "alarms"],
+  "host_permissions": ["file:///*"],
   "background": {
     "service_worker": "background.js"
   },

@@ -8,9 +8,7 @@ import storage from "../main/lib/storage";
 
 const IDS_KEY = "**** pdf cache ids ****";
 const KEY_PREFIX = "**** pdf cache ****:";
-const TTL = 1000 * 60 * 60 * 24;
-// ponytail: keep five Base64 entries in chrome.storage.local; use IndexedDB for a larger cache.
-const MAX_ENTRIES = 5;
+const TTL = 1000 * 60 * 60 * 24 * 7;
 
 const keyFor = (id) => `${KEY_PREFIX}${id}`;
 
@@ -25,6 +23,34 @@ const remove = async (id) => {
   await storage.local.set({ [IDS_KEY]: ids.filter((cachedId) => cachedId !== id) });
 };
 
+const readEntries = async () => {
+  const ids = await getIds();
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const now = Date.now();
+  const stored = await storage.local.get(ids.map(keyFor));
+  const valid = [];
+  const stale = [];
+
+  for (const id of ids) {
+    const entry = stored[keyFor(id)];
+    if (entry?.data && typeof entry.data === "string" && entry.expiresAt > now) {
+      valid.push({ id, entry });
+    } else {
+      stale.push(id);
+    }
+  }
+
+  if (stale.length > 0) {
+    await storage.local.remove(stale.map(keyFor));
+    await storage.local.set({ [IDS_KEY]: valid.map(({ id }) => id) });
+  }
+
+  return valid;
+};
+
 const get = async (id) => {
   const entry = await storage.local.pick(keyFor(id));
   if (!entry || typeof entry.data !== "string") {
@@ -34,24 +60,56 @@ const get = async (id) => {
     await remove(id);
     return null;
   }
+  const now = Date.now();
+  await storage.local.set({
+    [keyFor(id)]: {
+      ...entry,
+      lastAccessAt: now,
+      expiresAt: now + TTL,
+    },
+  });
   return entry.data;
 };
 
-const set = async (id, data) => {
+const set = async (id, data, metadata = {}) => {
   const now = Date.now();
-  const ids = await getIds();
-  const stored = await storage.local.get(ids.map(keyFor));
-  const validIds = ids.filter((cachedId) => stored[keyFor(cachedId)]?.expiresAt > now);
-  const nextIds = [id, ...validIds.filter((cachedId) => cachedId !== id)].slice(0, MAX_ENTRIES);
-  const removedIds = ids.filter((cachedId) => !nextIds.includes(cachedId));
+  const entries = await readEntries();
+  const current = entries.find((item) => item.id === id)?.entry;
+  const nextIds = [id, ...entries.map(({ id: cachedId }) => cachedId).filter((cachedId) => cachedId !== id)];
 
   await storage.local.set({
-    [keyFor(id)]: { data, expiresAt: now + TTL },
+    [keyFor(id)]: {
+      data,
+      sourceUrl: metadata.sourceUrl ?? current?.sourceUrl ?? "",
+      title: metadata.title ?? current?.title ?? "",
+      createdAt: current?.createdAt ?? now,
+      lastAccessAt: now,
+      expiresAt: now + TTL,
+    },
     [IDS_KEY]: nextIds,
   });
-  if (removedIds.length >= 1) {
-    await storage.local.remove(removedIds.map(keyFor));
-  }
 };
 
-export default { get, set };
+const list = async () => {
+  const entries = await readEntries();
+  return entries
+    .map(({ id, entry }) => ({
+      id,
+      sourceUrl: entry.sourceUrl ?? "",
+      title: entry.title ?? "",
+      createdAt: entry.createdAt ?? 0,
+      lastAccessAt: entry.lastAccessAt ?? entry.createdAt ?? 0,
+      expiresAt: entry.expiresAt,
+    }))
+    .sort((a, b) => b.lastAccessAt - a.lastAccessAt);
+};
+
+const clear = async () => {
+  const ids = await getIds();
+  if (ids.length > 0) {
+    await storage.local.remove(ids.map(keyFor));
+  }
+  await storage.local.set({ [IDS_KEY]: [] });
+};
+
+export default { get, set, list, remove, clear, cleanup: list };

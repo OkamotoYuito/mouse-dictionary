@@ -5,9 +5,11 @@
  */
 
 import { produce } from "immer";
+import { useEffect, useState } from "react";
 import { env } from "../../extern";
-import { res } from "../../logic";
+import { pdf, res } from "../../logic";
 import type { InitialPosition, MouseDictionaryBasicSettings, UpdateEventHandler } from "../../types";
+import { Button } from "../atom/Button";
 import { Select } from "../atom/Select";
 
 type Props = {
@@ -30,6 +32,24 @@ const FONT_SIZES = [
 ];
 
 export const BasicSettings: React.FC<Props> = (props) => {
+  const [cachedPdfs, setCachedPdfs] = useState<pdf.PdfCacheEntry[]>([]);
+  const [cacheBusy, setCacheBusy] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    pdf
+      .listPdfCache()
+      .then((entries) => {
+        if (mounted) {
+          setCachedPdfs(entries ?? []);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const settings = props.settings;
   if (!settings) {
     return <div />;
@@ -56,6 +76,17 @@ export const BasicSettings: React.FC<Props> = (props) => {
       }
     });
     props.onUpdate(undefined, newPatch);
+  };
+
+  const updateCache = async (action: () => Promise<boolean>) => {
+    setCacheBusy(true);
+    try {
+      if (await action()) {
+        setCachedPdfs((await pdf.listPdfCache()) ?? []);
+      }
+    } finally {
+      setCacheBusy(false);
+    }
   };
 
   return (
@@ -91,6 +122,42 @@ export const BasicSettings: React.FC<Props> = (props) => {
           style={{ width: 250 }}
           onChange={(value) => update({ pdfLinkTarget: value as "self" | "blank" })}
         />
+        <h4>{res.get("savedPdfList")}</h4>
+        {cachedPdfs.length === 0 ? (
+          <p>{res.get("noSavedPdf")}</p>
+        ) : (
+          <>
+            <ul>
+              {cachedPdfs.map((entry) => (
+                <li key={entry.id} style={{ marginBottom: 8 }}>
+                  <div style={{ overflowWrap: "anywhere" }}>{entry.title || entry.sourceUrl}</div>
+                  {entry.title && <div style={{ overflowWrap: "anywhere" }}>{entry.sourceUrl}</div>}
+                  <small>
+                    {res.get("pdfCacheLastUsed", { date: new Date(entry.lastAccessAt).toLocaleString() })}
+                    {" / "}
+                    {res.get("pdfCacheExpires", { date: new Date(entry.expiresAt).toLocaleString() })}
+                  </small>
+                  <br />
+                  <a href={`pdf/web/viewer.html?id=${encodeURIComponent(entry.id)}`} target="_blank" rel="noreferrer">
+                    {res.get("openSavedPdf")}
+                  </a>{" "}
+                  <Button
+                    type="revert"
+                    text={res.get("deletePdf")}
+                    disabled={cacheBusy}
+                    onClick={() => updateCache(() => pdf.removePdfCache(entry.id))}
+                  />
+                </li>
+              ))}
+            </ul>
+            <Button
+              type="cancel"
+              text={res.get("clearPdfCache")}
+              disabled={cacheBusy}
+              onClick={() => updateCache(pdf.clearPdfCache)}
+            />
+          </>
+        )}
         <label>{res.get("initialSize")}</label>
         <span>{res.get("width")}</span>
         <input

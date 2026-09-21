@@ -78,6 +78,13 @@ export type TextResource = {
   skipPdfConfirmation: string;
   pdfSettings: string;
   persistPdf: string;
+  savedPdfList: string;
+  noSavedPdf: string;
+  openSavedPdf: string;
+  deletePdf: string;
+  clearPdfCache: string;
+  pdfCacheLastUsed: string;
+  pdfCacheExpires: string;
   pdfLinkTarget: string;
   pdfLinkTargetSelf: string;
   pdfLinkTargetBlank: string;

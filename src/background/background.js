@@ -4,6 +4,7 @@
  * Licensed under MIT
  */
 
+import { convertToBase64 } from "../main/lib/base64";
 import pdfCache from "./pdf-cache";
 import ExpiringQueue from "./queue";
 import generateUniqueId from "./unique";
@@ -53,13 +54,25 @@ chrome.commands.onCommand.addListener((command) => {
 
 // PDF handling
 const queue = new ExpiringQueue(1000 * 30);
+const PDF_CACHE_CLEANUP_ALARM = "pdf-cache-cleanup";
+chrome.alarms?.create(PDF_CACHE_CLEANUP_ALARM, { periodInMinutes: 24 * 60 });
+chrome.alarms?.onAlarm.addListener((alarm) => {
+  if (alarm.name === PDF_CACHE_CLEANUP_ALARM) {
+    pdfCache.cleanup().catch(console.error);
+  }
+});
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   switch (request?.type) {
     case "open_pdf": {
       const id = generateUniqueId();
       queue.push(id, request.payload);
       const persist =
-        request.persist === true ? pdfCache.set(id, request.payload).catch(console.error) : Promise.resolve();
+        request.persist === true
+          ? pdfCache
+              .set(id, request.payload, { sourceUrl: request.sourceUrl, title: request.title })
+              .catch(console.error)
+          : Promise.resolve();
       persist.then(() => {
         chrome.runtime.sendMessage({ type: "prepare_pdf" });
         chrome.runtime.openOptionsPage(() => {
@@ -68,6 +81,40 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       });
       return true;
     }
+    case "fetch_local_pdf": {
+      if (typeof request.url !== "string" || !request.url.startsWith("file://")) {
+        sendResponse(null);
+        break;
+      }
+      fetch(request.url)
+        .then(async (response) => {
+          if (response.status !== 200) {
+            return null;
+          }
+          return { payload: convertToBase64(await response.arrayBuffer()) };
+        })
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
+    }
+    case "list_pdf_cache":
+      pdfCache
+        .list()
+        .then(sendResponse)
+        .catch(() => sendResponse([]));
+      return true;
+    case "remove_pdf_cache":
+      pdfCache
+        .remove(request.id)
+        .then(() => sendResponse(true))
+        .catch(() => sendResponse(false));
+      return true;
+    case "clear_pdf_cache":
+      pdfCache
+        .clear()
+        .then(() => sendResponse(true))
+        .catch(() => sendResponse(false));
+      return true;
     case "shift_pdf_id": {
       const frontId = queue.shiftId();
       sendResponse(frontId);
