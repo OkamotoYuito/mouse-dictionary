@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       }
       fetch(request.url)
         .then(async (response) => {
-          if (response.status !== 200) {
+          if (!response.ok && response.status !== 0) {
             return null;
           }
           return { payload: convertToBase64(await response.arrayBuffer()) };
