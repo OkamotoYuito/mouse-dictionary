@@ -76,6 +76,11 @@ export type TextResource = {
   JsonImportError: string;
   aboutJsonEditor: string;
   skipPdfConfirmation: string;
+  pdfSettings: string;
+  persistPdf: string;
+  pdfLinkTarget: string;
+  pdfLinkTargetSelf: string;
+  pdfLinkTargetBlank: string;
   pdfUrlPattern: string;
   domType: string;
 };

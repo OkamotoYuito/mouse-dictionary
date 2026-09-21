@@ -11,6 +11,8 @@ export default {
   lookupWithCapitalized: false,
   initialPosition: "right",
   skipPdfConfirmation: false,
+  persistPdf: true,
+  pdfLinkTarget: "blank",
   pdfUrl: "",
   backgroundColor: "#ffffff",
   headFontColor: "#000088",

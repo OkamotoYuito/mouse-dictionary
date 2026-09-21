@@ -7,7 +7,7 @@
 import ribbon from "../lib/ribbon";
 import res from "./resource";
 
-const invoke = async () => {
+const invoke = async (settings) => {
   const [updateRibbon, closeRibbon] = ribbon.create();
 
   updateRibbon(res("downloadingPdf"));
@@ -39,7 +39,7 @@ const invoke = async () => {
   }
 
   const payload = convertToBase64(arrayBuffer);
-  sendMessage({ type: "open_pdf", payload });
+  sendMessage({ type: "open_pdf", payload, persist: settings.persistPdf });
 
   closeRibbon();
 };

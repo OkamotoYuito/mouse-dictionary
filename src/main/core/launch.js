@@ -66,7 +66,7 @@ const launchPdfViewer = (settings) => {
     return;
   }
   try {
-    pdf.invoke();
+    pdf.invoke(settings);
   } catch (e) {
     alert(e.message);
     console.error(e);

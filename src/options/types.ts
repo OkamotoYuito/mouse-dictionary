@@ -16,6 +16,8 @@ export type MouseDictionaryBasicSettings = {
   width: number;
   height: number;
   skipPdfConfirmation: boolean;
+  persistPdf: boolean;
+  pdfLinkTarget: "self" | "blank";
 };
 
 export type MouseDictionaryAdvancedSettings = {

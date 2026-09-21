@@ -10,5 +10,6 @@ import * as res from "../logic/resource";
 import * as data from "./data";
 import { debounce } from "./debounce";
 import * as htmlrisk from "./htmlrisk";
+import * as pdf from "./pdf";
 
-export { data, debounce, dict, htmlrisk, message, res };
+export { data, debounce, dict, htmlrisk, message, pdf, res };

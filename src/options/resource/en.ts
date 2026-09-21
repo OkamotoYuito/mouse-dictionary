@@ -93,6 +93,11 @@ const EnglishTextResource: TextResource = {
   aboutJsonEditor:
     "This is JSON data which expresses the whole Mouse Dictionary's settings. Please use it for backup, sharing and so forth.",
   skipPdfConfirmation: "Skip PDF download confirmation",
+  pdfSettings: "PDF settings",
+  persistPdf: "Keep web PDFs for reload (24 hours)",
+  pdfLinkTarget: "Open PDF links",
+  pdfLinkTargetSelf: "In the current tab",
+  pdfLinkTargetBlank: "In a new tab",
   pdfUrlPattern: "Override PDF document judgment (regular expressions for URL)",
   domType: "DOM Type",
 };

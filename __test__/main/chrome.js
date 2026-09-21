@@ -15,6 +15,13 @@ class Storage {
     Object.assign(this.data, items);
     callback();
   }
+
+  remove(keys, callback) {
+    for (const key of Array.isArray(keys) ? keys : [keys]) {
+      delete this.data[key];
+    }
+    callback();
+  }
 }
 
 class Chrome {

@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import swal from "sweetalert";
 import rule from "../main/core/rule";
-import { res } from "./logic";
+import { config } from "./extern";
+import { pdf, res } from "./logic";
 import { Main } from "./page/Main";
 import "ace-builds/src-noconflict/mode-html";
 import "ace-builds/src-noconflict/mode-json";
@@ -44,11 +45,17 @@ const App = () => {
     location.href = `pdf/web/viewer.html?id=${id}`;
   };
 
+  const showPdfViewerWithSettings = async (id: string) => {
+    const settings = await config.loadRawSettings();
+    pdf.setPdfViewerLinkTarget(settings.pdfLinkTarget);
+    showPdfViewer(id);
+  };
+
   useEffect(() => {
     const init = async (): Promise<void> => {
       const id = (await sendMessage({ type: "shift_pdf_id" })) as string;
       if (id) {
-        showPdfViewer(id);
+        await showPdfViewerWithSettings(id);
       } else {
         setMode("options");
       }
@@ -60,7 +67,7 @@ const App = () => {
         case "prepare_pdf": {
           const id = (await sendMessage({ type: "shift_pdf_id" })) as string;
           if (id) {
-            showPdfViewer(id);
+            await showPdfViewerWithSettings(id);
           }
           break;
         }

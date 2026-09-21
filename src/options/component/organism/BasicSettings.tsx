@@ -71,6 +71,26 @@ export const BasicSettings: React.FC<Props> = (props) => {
             checked={settings.skipPdfConfirmation}
           />
         </label>
+        <h3>{res.get("pdfSettings")}</h3>
+        <label>
+          {res.get("persistPdf")}
+          <input
+            type="checkbox"
+            name="persistPdf"
+            onChange={(e) => update({ persistPdf: e.target.checked })}
+            checked={settings.persistPdf}
+          />
+        </label>
+        <label>{res.get("pdfLinkTarget")}</label>
+        <Select
+          value={settings.pdfLinkTarget}
+          options={[
+            { name: res.get("pdfLinkTargetSelf"), value: "self" },
+            { name: res.get("pdfLinkTargetBlank"), value: "blank" },
+          ]}
+          style={{ width: 250 }}
+          onChange={(value) => update({ pdfLinkTarget: value as "self" | "blank" })}
+        />
         <label>{res.get("initialSize")}</label>
         <span>{res.get("width")}</span>
         <input

@@ -4,6 +4,7 @@
  * Licensed under MIT
  */
 
+import pdfCache from "./pdf-cache";
 import ExpiringQueue from "./queue";
 import generateUniqueId from "./unique";
 
@@ -57,11 +58,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     case "open_pdf": {
       const id = generateUniqueId();
       queue.push(id, request.payload);
-      chrome.runtime.sendMessage({ type: "prepare_pdf" });
-      chrome.runtime.openOptionsPage(() => {
-        sendResponse();
+      const persist =
+        request.persist === true ? pdfCache.set(id, request.payload).catch(console.error) : Promise.resolve();
+      persist.then(() => {
+        chrome.runtime.sendMessage({ type: "prepare_pdf" });
+        chrome.runtime.openOptionsPage(() => {
+          sendResponse();
+        });
       });
-      break;
+      return true;
     }
     case "shift_pdf_id": {
       const frontId = queue.shiftId();
@@ -70,8 +75,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     }
     case "get_pdf_data": {
       const pdfData = queue.get(request.id);
-      sendResponse(pdfData);
-      break;
+      if (pdfData !== null) {
+        sendResponse(pdfData);
+        break;
+      }
+      pdfCache
+        .get(request.id)
+        .then(sendResponse)
+        .catch(() => sendResponse(null));
+      return true;
     }
   }
 });

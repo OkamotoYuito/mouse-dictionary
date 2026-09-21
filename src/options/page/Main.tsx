@@ -26,7 +26,7 @@ import {
   WholeSettings,
 } from "../component/organism";
 import { config, defaultSettings, env } from "../extern";
-import { data, dict, message, res } from "../logic";
+import { data, dict, message, pdf, res } from "../logic";
 import { detectFileEncoding } from "../logic/encoding";
 import { usePreview } from "../logic/preview";
 
@@ -110,6 +110,10 @@ export const Main: React.FC = () => {
     if (!state.initialized) return;
     updatePreview(state.settings, state.previewText, true);
   }, [state.settings, state.previewText]);
+  useEffect(() => {
+    if (!state.initialized) return;
+    pdf.setPdfViewerLinkTarget(state.settings.pdfLinkTarget);
+  }, [state.initialized, state.settings.pdfLinkTarget]);
 
   useEffect(() => {
     if (!state.initialized) return;
