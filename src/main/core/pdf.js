@@ -17,11 +17,7 @@ const invoke = async (settings) => {
   let arrayBuffer;
   try {
     if (location.protocol === "file:") {
-      const result = await sendMessage({ type: "fetch_local_pdf", url: location.href });
-      if (!result?.payload) {
-        throw new Error(res("cannotFetchLocalPdf"));
-      }
-      arrayBuffer = convertFromBase64(result.payload);
+      arrayBuffer = await fetchLocalPdf();
     } else {
       const response = await fetch(location.href);
       if (response.status !== 200) {
@@ -50,6 +46,23 @@ const invoke = async (settings) => {
   });
 
   closeRibbon();
+};
+
+const fetchLocalPdf = async () => {
+  try {
+    const response = await fetch(location.href);
+    if (response.ok || response.status === 0) {
+      return response.arrayBuffer();
+    }
+  } catch {
+    // Fall back to the extension background for browsers that block file fetches here.
+  }
+
+  const result = await sendMessage({ type: "fetch_local_pdf", url: location.href });
+  if (!result?.payload) {
+    throw new Error(res("cannotFetchLocalPdf"));
+  }
+  return convertFromBase64(result.payload);
 };
 
 const isPdf = (arrayBuffer) => {
