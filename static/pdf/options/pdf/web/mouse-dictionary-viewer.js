@@ -6,6 +6,15 @@
 
 import { PDFViewerApplication } from "./viewer.mjs";
 
+const loadMouseDictionary = () =>
+  new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL("main.js");
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Failed to load Mouse Dictionary."));
+    document.head.appendChild(script);
+  });
+
 const getPdfData = (id) =>
   new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type: "get_pdf_data", id }, (response) => {
@@ -18,6 +27,9 @@ const getPdfData = (id) =>
   });
 
 const loadPdf = async () => {
+  await PDFViewerApplication.initializedPromise;
+  await loadMouseDictionary();
+
   const id = new URLSearchParams(location.search).get("id");
   if (!id) return;
 
@@ -26,7 +38,6 @@ const loadPdf = async () => {
     throw new Error("PDF data is no longer available.");
   }
 
-  await PDFViewerApplication.initializedPromise;
   const data = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
   await PDFViewerApplication.open({ data });
 };
