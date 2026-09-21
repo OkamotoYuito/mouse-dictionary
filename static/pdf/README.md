@@ -1,4 +1,7 @@
-Place a PDF.js-based viewer here.
+The packaged PDF.js generic viewer lives under `options/pdf`.
+
+`web/mouse-dictionary-viewer.js` loads the PDF data held by Mouse Dictionary's
+background service from the `id` query parameter.
 
 https://github.com/wtetsu/pdf.js
 
