@@ -71,6 +71,16 @@ const get = async (id) => {
   return entry.data;
 };
 
+const findByData = async (data) => {
+  const entries = await readEntries();
+  const match = entries.find(({ entry }) => entry.data === data);
+  if (!match) {
+    return null;
+  }
+  await get(match.id);
+  return match.id;
+};
+
 const set = async (id, data, metadata = {}) => {
   const now = Date.now();
   const entries = await readEntries();
@@ -112,4 +122,4 @@ const clear = async () => {
   await storage.local.set({ [IDS_KEY]: [] });
 };
 
-export default { get, set, list, remove, clear, cleanup: list };
+export default { get, set, findByData, list, remove, clear, cleanup: list };

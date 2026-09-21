@@ -34,4 +34,13 @@ export default class ExpiringQueue {
   get(id) {
     return this.pdfData.get(id) ?? null;
   }
+
+  findId(data) {
+    for (const [id, value] of this.pdfData) {
+      if (value === data) {
+        return id;
+      }
+    }
+    return null;
+  }
 }

@@ -21,6 +21,8 @@ test("", async () => {
   expect(queue.get("02")).toEqual("ABC02");
   expect(queue.get("03")).toEqual("ABC03");
   expect(queue.get("04")).toEqual(null);
+  expect(queue.findId("ABC03")).toEqual("03");
+  expect(queue.findId("missing")).toEqual(null);
 
   expect(queue.shiftId()).toEqual("01");
   expect(queue.shiftId()).toEqual("02");

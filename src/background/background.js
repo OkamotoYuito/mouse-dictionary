@@ -55,6 +55,71 @@ chrome.commands.onCommand.addListener((command) => {
 // PDF handling
 const queue = new ExpiringQueue(1000 * 30);
 const PDF_CACHE_CLEANUP_ALARM = "pdf-cache-cleanup";
+
+const getPdfViewerUrl = (id) => chrome.runtime.getURL(`options/pdf/web/viewer.html?id=${encodeURIComponent(id)}`);
+
+const focusExistingPdfViewer = async (id) => {
+  if (typeof chrome.runtime.getContexts !== "function") {
+    return false;
+  }
+
+  let contexts;
+  try {
+    contexts = await chrome.runtime.getContexts({
+      contextTypes: ["TAB"],
+    });
+  } catch {
+    return false;
+  }
+
+  const viewerUrl = getPdfViewerUrl(id);
+  const context = contexts.find(({ documentUrl, tabId }) => tabId >= 0 && documentUrl?.startsWith(viewerUrl));
+  if (!context) {
+    return false;
+  }
+
+  try {
+    await chrome.tabs.update(context.tabId, { active: true });
+  } catch {
+    return false;
+  }
+  try {
+    await chrome.windows?.update(context.windowId, { focused: true });
+  } catch {
+    // Activating the tab is enough when focusing its window is unavailable.
+  }
+  return true;
+};
+
+const openPdf = async (request, sendResponse) => {
+  let id = queue.findId(request.payload);
+  if (!id) {
+    try {
+      id = await pdfCache.findByData(request.payload);
+    } catch {
+      id = null;
+    }
+  }
+  id ??= generateUniqueId();
+
+  queue.push(id, request.payload);
+  const persist =
+    request.persist === true
+      ? pdfCache.set(id, request.payload, { sourceUrl: request.sourceUrl, title: request.title }).catch(console.error)
+      : Promise.resolve();
+  await persist;
+
+  if (await focusExistingPdfViewer(id)) {
+    sendResponse();
+    return;
+  }
+
+  chrome.runtime.sendMessage({ type: "prepare_pdf" });
+  chrome.runtime.openOptionsPage(() => {
+    sendResponse();
+  });
+};
+
 chrome.alarms?.create(PDF_CACHE_CLEANUP_ALARM, { periodInMinutes: 24 * 60 });
 chrome.alarms?.onAlarm.addListener((alarm) => {
   if (alarm.name === PDF_CACHE_CLEANUP_ALARM) {
@@ -65,20 +130,7 @@ chrome.alarms?.onAlarm.addListener((alarm) => {
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   switch (request?.type) {
     case "open_pdf": {
-      const id = generateUniqueId();
-      queue.push(id, request.payload);
-      const persist =
-        request.persist === true
-          ? pdfCache
-              .set(id, request.payload, { sourceUrl: request.sourceUrl, title: request.title })
-              .catch(console.error)
-          : Promise.resolve();
-      persist.then(() => {
-        chrome.runtime.sendMessage({ type: "prepare_pdf" });
-        chrome.runtime.openOptionsPage(() => {
-          sendResponse();
-        });
-      });
+      openPdf(request, sendResponse).catch(() => sendResponse());
       return true;
     }
     case "fetch_local_pdf": {

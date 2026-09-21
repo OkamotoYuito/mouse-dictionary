@@ -33,3 +33,10 @@ test("lists saved PDF metadata and removes entries", async () => {
   await pdfCache.remove("pdf-1");
   expect(await pdfCache.list()).toEqual([]);
 });
+
+test("finds an existing PDF by its content", async () => {
+  await pdfCache.set("pdf-1", "base64-data");
+
+  expect(await pdfCache.findByData("base64-data")).toBe("pdf-1");
+  expect(await pdfCache.findByData("different-data")).toBeNull();
+});
