@@ -7,7 +7,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-test("original PDF tab transfers data only to its own viewer without cache or new tabs", async () => {
+test("original PDF tab fills the window and honors cache settings without new tabs", async () => {
   // happy-dom cannot navigate extension URLs; use an empty srcdoc for the frame.
   vi.spyOn(HTMLIFrameElement.prototype, "src", "set").mockImplementation(function (value) {
     this.dataset.viewerUrl = value;
@@ -34,7 +34,19 @@ test("original PDF tab transfers data only to its own viewer without cache or ne
   expect(frame.src).toContain("viewer.html?embedded=1");
   expect(nativePdf.isConnected).toBe(true);
   expect(location.href).toBe(originalUrl);
-  expect(sendMessage).not.toHaveBeenCalled();
+  expect(frame.style.top).toBe("0px");
+  expect(frame.style.height).toBe("100%");
+  expect(sendMessage).toHaveBeenCalledWith(
+    {
+      type: "open_pdf",
+      embedded: true,
+      payload: btoa("%PDF-1.4\n"),
+      persist: true,
+      sourceUrl: originalUrl,
+      title: document.title,
+    },
+    expect.any(Function),
+  );
   const transfer = vi.spyOn(frame.contentWindow, "postMessage").mockImplementation(() => {});
   window.dispatchEvent(
     new MessageEvent("message", {
@@ -60,4 +72,8 @@ test("original PDF tab transfers data only to its own viewer without cache or ne
   document.querySelector<HTMLButtonElement>("#mouse-dictionary-pdf-overlay button")?.click();
   expect(document.querySelector("iframe")).toBeNull();
   expect(nativePdf.isConnected).toBe(true);
+  sendMessage.mockClear();
+  await pdf.invoke({ persistPdf: false });
+  expect(sendMessage).not.toHaveBeenCalled();
+  document.querySelector<HTMLButtonElement>("#mouse-dictionary-pdf-overlay button")?.click();
 });

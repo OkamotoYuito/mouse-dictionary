@@ -40,6 +40,16 @@ const invoke = async (settings) => {
   const payload = convertToBase64(arrayBuffer);
   if (BROWSER === "chrome") {
     showInCurrentTab(payload, settings);
+    if (settings.persistPdf) {
+      sendMessage({
+        type: "open_pdf",
+        embedded: true,
+        payload,
+        persist: true,
+        sourceUrl: location.href,
+        title: document.title,
+      });
+    }
     closeRibbon();
     return;
   }
@@ -61,16 +71,16 @@ const showInCurrentTab = (payload, settings) => {
   const close = document.createElement("button");
   close.type = "button";
   close.textContent = "辞書付きPDFを閉じる";
-  Object.assign(close.style, { height: "30px", position: "absolute", top: "0", left: "0" });
+  Object.assign(close.style, { position: "absolute", bottom: "8px", left: "8px", zIndex: "1" });
   const frame = document.createElement("iframe");
   frame.title = "Mouse Dictionary PDF viewer";
   frame.src = chrome.runtime.getURL("options/pdf/web/viewer.html?embedded=1");
   Object.assign(frame.style, {
     position: "absolute",
-    top: "30px",
+    top: "0",
     left: "0",
     width: "100%",
-    height: "calc(100% - 30px)",
+    height: "100%",
     border: "0",
   });
   const viewerOrigin = frame.src.split("/").slice(0, 3).join("/");

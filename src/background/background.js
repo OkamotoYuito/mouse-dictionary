@@ -102,12 +102,17 @@ const openPdf = async (request, sendResponse) => {
   }
   id ??= generateUniqueId();
 
-  queue.push(id, request.payload);
+  if (!request.embedded) queue.push(id, request.payload);
   const persist =
     request.persist === true
       ? pdfCache.set(id, request.payload, { sourceUrl: request.sourceUrl, title: request.title }).catch(console.error)
       : Promise.resolve();
   await persist;
+
+  if (request.embedded) {
+    sendResponse(id);
+    return;
+  }
 
   if (await focusExistingPdfViewer(id)) {
     sendResponse();
