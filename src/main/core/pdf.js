@@ -68,10 +68,6 @@ const showInCurrentTab = (payload, settings) => {
   const overlay = document.createElement("div");
   overlay.id = "mouse-dictionary-pdf-overlay";
   Object.assign(overlay.style, { position: "fixed", inset: "0", zIndex: "2147483647", background: "#fff" });
-  const close = document.createElement("button");
-  close.type = "button";
-  close.textContent = "辞書付きPDFを閉じる";
-  Object.assign(close.style, { position: "absolute", bottom: "8px", left: "8px", zIndex: "1" });
   const frame = document.createElement("iframe");
   frame.title = "Mouse Dictionary PDF viewer";
   frame.src = chrome.runtime.getURL("options/pdf/web/viewer.html?embedded=1");
@@ -85,24 +81,20 @@ const showInCurrentTab = (payload, settings) => {
   });
   const viewerOrigin = frame.src.split("/").slice(0, 3).join("/");
   const sendPdf = (event) => {
-    if (
-      event.source !== frame.contentWindow ||
-      event.origin !== viewerOrigin ||
-      event.data?.type !== "mouse_dictionary_pdf_ready"
-    )
-      return;
-    window.removeEventListener("message", sendPdf);
-    frame.contentWindow.postMessage(
-      { type: "mouse_dictionary_pdf_data", payload, linkTarget: settings.pdfLinkTarget },
-      viewerOrigin,
-    );
+    if (event.source !== frame.contentWindow || event.origin !== viewerOrigin) return;
+    if (event.data?.type === "mouse_dictionary_pdf_close") {
+      window.removeEventListener("message", sendPdf);
+      overlay.remove();
+    } else if (event.data?.type === "mouse_dictionary_pdf_ready" && payload) {
+      frame.contentWindow.postMessage(
+        { type: "mouse_dictionary_pdf_data", payload, linkTarget: settings.pdfLinkTarget },
+        viewerOrigin,
+      );
+      payload = null;
+    }
   };
   window.addEventListener("message", sendPdf);
-  close.addEventListener("click", () => {
-    window.removeEventListener("message", sendPdf);
-    overlay.remove();
-  });
-  overlay.append(close, frame);
+  overlay.append(frame);
   document.body.append(overlay);
 };
 

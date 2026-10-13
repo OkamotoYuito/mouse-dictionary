@@ -21,6 +21,19 @@ const embeddedData = params.get("embedded") === "1" && window.parent !== window
     })
   : null;
 
+if (embeddedData) {
+  const close = document.createElement("button");
+  close.id = "mouseDictionaryClose";
+  close.className = "toolbarButton";
+  close.type = "button";
+  close.title = "辞書付きPDFを閉じる";
+  close.setAttribute("aria-label", close.title);
+  close.addEventListener("click", () => {
+    window.parent.postMessage({ type: "mouse_dictionary_pdf_close" }, "*");
+  });
+  document.getElementById("toolbarViewerRight").append(close);
+}
+
 const loadMouseDictionary = () =>
   new Promise((resolve, reject) => {
     const script = document.createElement("script");

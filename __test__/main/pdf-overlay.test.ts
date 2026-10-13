@@ -69,11 +69,32 @@ test("original PDF tab fills the window and honors cache settings without new ta
   );
   await pdf.invoke({});
   expect(fetchPdf).toHaveBeenCalledTimes(1);
-  document.querySelector<HTMLButtonElement>("#mouse-dictionary-pdf-overlay button")?.click();
+  expect(document.querySelector("#mouse-dictionary-pdf-overlay button")).toBeNull();
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { type: "mouse_dictionary_pdf_close" },
+      origin: "https://evil.example",
+      source: frame.contentWindow,
+    }),
+  );
+  expect(frame.isConnected).toBe(true);
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { type: "mouse_dictionary_pdf_close" },
+      origin: `chrome-extension://${"a".repeat(32)}`,
+      source: frame.contentWindow,
+    }),
+  );
   expect(document.querySelector("iframe")).toBeNull();
   expect(nativePdf.isConnected).toBe(true);
   sendMessage.mockClear();
   await pdf.invoke({ persistPdf: false });
   expect(sendMessage).not.toHaveBeenCalled();
-  document.querySelector<HTMLButtonElement>("#mouse-dictionary-pdf-overlay button")?.click();
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { type: "mouse_dictionary_pdf_close" },
+      origin: `chrome-extension://${"a".repeat(32)}`,
+      source: document.querySelector("iframe")?.contentWindow,
+    }),
+  );
 });
