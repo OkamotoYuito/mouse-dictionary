@@ -6,6 +6,7 @@
   },
   "entries": {
     "src/main/start.js": "main.js",
+    "src/main/local-pdf.js": "local-pdf.js",
     "src/options/app.tsx": "options/options.js",
     "src/background/background.js": "background.js"
   }
