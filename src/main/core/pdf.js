@@ -9,6 +9,7 @@ import ribbon from "../lib/ribbon";
 import res from "./resource";
 
 const invoke = async (settings) => {
+  if (document.getElementById("mouse-dictionary-pdf-overlay")) return;
   const [updateRibbon, closeRibbon] = ribbon.create();
 
   updateRibbon(res("downloadingPdf"));
@@ -37,6 +38,11 @@ const invoke = async (settings) => {
   }
 
   const payload = convertToBase64(arrayBuffer);
+  if (BROWSER === "chrome") {
+    showInCurrentTab(payload, settings);
+    closeRibbon();
+    return;
+  }
   sendMessage({
     type: "open_pdf",
     payload,
@@ -46,6 +52,48 @@ const invoke = async (settings) => {
   });
 
   closeRibbon();
+};
+
+const showInCurrentTab = (payload, settings) => {
+  const overlay = document.createElement("div");
+  overlay.id = "mouse-dictionary-pdf-overlay";
+  Object.assign(overlay.style, { position: "fixed", inset: "0", zIndex: "2147483647", background: "#fff" });
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "辞書付きPDFを閉じる";
+  Object.assign(close.style, { height: "30px", position: "absolute", top: "0", left: "0" });
+  const frame = document.createElement("iframe");
+  frame.title = "Mouse Dictionary PDF viewer";
+  frame.src = chrome.runtime.getURL("options/pdf/web/viewer.html?embedded=1");
+  Object.assign(frame.style, {
+    position: "absolute",
+    top: "30px",
+    left: "0",
+    width: "100%",
+    height: "calc(100% - 30px)",
+    border: "0",
+  });
+  const viewerOrigin = frame.src.split("/").slice(0, 3).join("/");
+  const sendPdf = (event) => {
+    if (
+      event.source !== frame.contentWindow ||
+      event.origin !== viewerOrigin ||
+      event.data?.type !== "mouse_dictionary_pdf_ready"
+    )
+      return;
+    window.removeEventListener("message", sendPdf);
+    frame.contentWindow.postMessage(
+      { type: "mouse_dictionary_pdf_data", payload, linkTarget: settings.pdfLinkTarget },
+      viewerOrigin,
+    );
+  };
+  window.addEventListener("message", sendPdf);
+  close.addEventListener("click", () => {
+    window.removeEventListener("message", sendPdf);
+    overlay.remove();
+  });
+  overlay.append(close, frame);
+  document.body.append(overlay);
 };
 
 const fetchLocalPdf = async () => {

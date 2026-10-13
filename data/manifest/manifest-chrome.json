@@ -10,14 +10,7 @@
     "open_in_tab": true
   },
   "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting", "alarms"],
-  "host_permissions": ["file:///", "http://127.0.0.1/*"],
-  "content_scripts": [
-    {
-      "matches": ["http://127.0.0.1/options/pdf/web/viewer.html*"],
-      "js": ["local-pdf.js"],
-      "run_at": "document_idle"
-    }
-  ],
+  "host_permissions": ["file:///"],
   "background": {
     "service_worker": "background.js"
   },
@@ -43,7 +36,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["data/rule.json", "data/dict*.json"],
+      "resources": ["data/rule.json", "data/dict*.json", "options/pdf/web/viewer.html"],
       "matches": ["<all_urls>"]
     }
   ]

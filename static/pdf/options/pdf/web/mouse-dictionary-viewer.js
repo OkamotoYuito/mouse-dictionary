@@ -4,51 +4,22 @@
  * Licensed under MIT
  */
 
-import { PDFViewerApplication } from "./viewer.mjs";
+import { PDFViewerApplication, PDFViewerApplicationOptions } from "./viewer.mjs";
 
-const shareButton = document.createElement("button");
-shareButton.type = "button";
-shareButton.textContent = "Gemini用に開く";
-shareButton.disabled = true;
-document.getElementById("toolbarViewerRight").prepend(shareButton);
-PDFViewerApplication.initializedPromise.then(() => {
-  PDFViewerApplication.eventBus.on("documentloaded", () => {
-    shareButton.disabled = false;
-  });
-});
-shareButton.addEventListener("click", async () => {
-  shareButton.disabled = true;
-  try {
-    const data = await PDFViewerApplication.pdfDocument.getData();
-    const response = await fetch("http://127.0.0.1:8765/pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/pdf" },
-      body: data,
-    });
-    if (!response.ok) {
-      throw new Error(response.status === 507
-        ? "サーバーの保存容量が上限に達しました。npm run pdf-server を再起動してください。"
-        : `PDF server: ${response.status}`);
-    }
-    const { id } = await response.json();
-    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("Invalid PDF ID");
-    const preferences = JSON.parse(localStorage.getItem("pdfjs.preferences") ?? "{}");
-    const target = preferences.externalLinkTarget === 1 ? 1 : 2;
-    const url = `http://127.0.0.1:8765/options/pdf/web/viewer.html?file=/pdf/${id}&target=${target}`;
-    const [existing] = await chrome.tabs.query({ url });
-    if (existing) {
-      await chrome.tabs.update(existing.id, { active: true });
-      await chrome.windows.update(existing.windowId, { focused: true });
-    } else {
-      await chrome.tabs.create({ url });
-    }
-  } catch (error) {
-    console.error(error);
-    alert("Gemini用viewerを開けませんでした。リポジトリで npm run pdf-server を起動してください。\n" + error.message);
-  } finally {
-    shareButton.disabled = false;
-  }
-});
+PDFViewerApplicationOptions.set("defaultUrl", "");
+
+const params = new URLSearchParams(location.search);
+const embeddedData = params.get("embedded") === "1" && window.parent !== window
+  ? new Promise((resolve) => {
+      const receivePdf = (event) => {
+        if (event.source !== window.parent || event.data?.type !== "mouse_dictionary_pdf_data" || typeof event.data.payload !== "string") return;
+        window.removeEventListener("message", receivePdf);
+        resolve(event.data);
+      };
+      window.addEventListener("message", receivePdf);
+      window.parent.postMessage({ type: "mouse_dictionary_pdf_ready" }, "*");
+    })
+  : null;
 
 const loadMouseDictionary = () =>
   new Promise((resolve, reject) => {
@@ -74,10 +45,14 @@ const loadPdf = async () => {
   await PDFViewerApplication.initializedPromise;
   await loadMouseDictionary();
 
-  const id = new URLSearchParams(location.search).get("id");
-  if (!id) return;
+  const id = params.get("id");
+  if (!id && !embeddedData) return;
 
-  const payload = await getPdfData(id);
+  const embedded = embeddedData ? await embeddedData : null;
+  if (embedded) {
+    PDFViewerApplication.pdfLinkService.externalLinkTarget = embedded.linkTarget === "self" ? 1 : 2;
+  }
+  const payload = embedded ? embedded.payload : await getPdfData(id);
   if (typeof payload !== "string") {
     throw new Error("PDF data is no longer available.");
   }
@@ -86,4 +61,7 @@ const loadPdf = async () => {
   await PDFViewerApplication.open({ data });
 };
 
-loadPdf().catch((error) => console.error("Mouse Dictionary PDF viewer:", error));
+loadPdf().catch((error) => {
+  console.error("Mouse Dictionary PDF viewer:", error);
+  alert("PDFを読み込めませんでした。元のPDFタブで辞書を起動し直してください。");
+});

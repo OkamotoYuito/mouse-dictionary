@@ -1,11 +1,10 @@
 {
   "name": "mouse-dictionary",
-  "version": "1.7.9",
+  "version": "1.7.10",
   "repository": "https://github.com/wtetsu/mouse-dictionary.git",
   "author": "wtetsu",
   "license": "MIT",
   "scripts": {
-    "pdf-server": "node tools/pdf-server.mjs",
     "res": "node tools/bundle_json.js && node tools/make_dict.js ",
     "res-force": "node tools/bundle_json.js --force && node tools/make_dict.js --force",
     "build": "npm run build-chrome",
@@ -14,7 +13,7 @@
     "package": "npm run package-chrome",
     "lint": "biome check ./src ./__test__",
     "format": "biome format --write ./src ./__test__",
-    "test": "vitest run && node --test tools/pdf-server.check.mjs",
+    "test": "vitest run",
     "test-watch": "vitest watch",
     "test-cov": "vitest run --coverage",
     "test-cov-watch": "vitest watch --coverage",
