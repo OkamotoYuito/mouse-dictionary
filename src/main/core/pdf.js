@@ -70,6 +70,7 @@ const showInCurrentTab = (payload, settings) => {
   Object.assign(overlay.style, { position: "fixed", inset: "0", zIndex: "2147483647", background: "#fff" });
   const frame = document.createElement("iframe");
   frame.title = "Mouse Dictionary PDF viewer";
+  frame.allow = "translator";
   frame.src = chrome.runtime.getURL("options/pdf/web/viewer.html?embedded=1");
   Object.assign(frame.style, {
     position: "absolute",
