@@ -141,6 +141,13 @@ export default class Lookuper {
 
 const fetchDescriptions = async (entries) => {
   const primaryDescriptions = await storage.local.get(entries);
+  const customDescriptions = await storage.local.get(entries.map((entry) => `**** custom word ****:${entry}`));
+  for (const entry of entries) {
+    const custom = customDescriptions[`**** custom word ****:${entry}`];
+    if (custom) {
+      primaryDescriptions[entry] = primaryDescriptions[entry] ? `${primaryDescriptions[entry]}<br>${custom}` : custom;
+    }
+  }
   const primaryHeads = entries.filter((e) => primaryDescriptions[e]);
 
   const refHeads = extractRefPatterns(primaryDescriptions);

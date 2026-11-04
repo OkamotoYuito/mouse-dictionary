@@ -21,6 +21,10 @@ const attach = async (settings, dialog, doUpdateContent) => {
 
   const traverse = traverser.build(rule.doLetters, settings.parseWordsLimit);
   const lookuper = new Lookuper(settings, entryDefault(), doUpdateContent);
+  dialog.addEventListener("mouse-dictionary-entry-saved", (event) => {
+    lookuper.lastText = null;
+    lookuper.update(event.detail, true, true, false).catch(console.error);
+  });
 
   const draggable = new Draggable(settings.normalDialogStyles, settings.movingDialogStyles);
   draggable.events.change = (e) => config.savePosition(e);
