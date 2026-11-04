@@ -6,7 +6,8 @@
 
 import { produce } from "immer";
 import { useEffect, useState } from "react";
-import { env } from "../../extern";
+import { AZURE_TRANSLATOR_KEY } from "../../../background/azure-translator";
+import { env, storage } from "../../extern";
 import { pdf, res } from "../../logic";
 import type { InitialPosition, MouseDictionaryBasicSettings, UpdateEventHandler } from "../../types";
 import { Button } from "../atom/Button";
@@ -34,6 +35,7 @@ const FONT_SIZES = [
 export const BasicSettings: React.FC<Props> = (props) => {
   const [cachedPdfs, setCachedPdfs] = useState<pdf.PdfCacheEntry[]>([]);
   const [cacheBusy, setCacheBusy] = useState(false);
+  const [azure, setAzure] = useState({ key: "", region: "" });
 
   useEffect(() => {
     let mounted = true;
@@ -42,6 +44,14 @@ export const BasicSettings: React.FC<Props> = (props) => {
       .then((entries) => {
         if (mounted) {
           setCachedPdfs(entries ?? []);
+        }
+      })
+      .catch(() => undefined);
+    storage.local
+      .pick(AZURE_TRANSLATOR_KEY)
+      .then((config) => {
+        if (mounted && config) {
+          setAzure({ key: config.key ?? "", region: config.region ?? "" });
         }
       })
       .catch(() => undefined);
@@ -76,6 +86,13 @@ export const BasicSettings: React.FC<Props> = (props) => {
       }
     });
     props.onUpdate(undefined, newPatch);
+  };
+
+  // The key is kept in local storage only, apart from the synced settings.
+  const updateAzure = (patch: Partial<typeof azure>) => {
+    const config = { ...azure, ...patch };
+    setAzure(config);
+    storage.local.set({ [AZURE_TRANSLATOR_KEY]: { key: config.key.trim(), region: config.region.trim() } });
   };
 
   const updateCache = async (action: () => Promise<boolean>) => {
@@ -122,6 +139,26 @@ export const BasicSettings: React.FC<Props> = (props) => {
             checked={settings.showTranslationByDefault}
           />
         </label>
+        <label>{res.get("azureTranslatorKey")}</label>
+        <input
+          type="password"
+          name="azureTranslatorKey"
+          autoComplete="off"
+          value={azure.key}
+          onChange={(e) => updateAzure({ key: e.target.value })}
+        />
+        <label>{res.get("azureTranslatorRegion")}</label>
+        <input
+          type="text"
+          name="azureTranslatorRegion"
+          value={azure.region}
+          required={!!azure.key.trim()}
+          onChange={(e) => updateAzure({ region: e.target.value })}
+        />
+        {azure.key.trim() && !azure.region.trim() && (
+          <p style={{ color: "#c62828" }}>{res.get("azureTranslatorRegionRequired")}</p>
+        )}
+        <p>{res.get("azureTranslatorHelp")}</p>
         <label>{res.get("pdfLinkTarget")}</label>
         <Select
           value={settings.pdfLinkTarget}

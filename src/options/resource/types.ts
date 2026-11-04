@@ -80,6 +80,10 @@ export type TextResource = {
   persistPdf: string;
   translationSettings: string;
   showTranslationByDefault: string;
+  azureTranslatorKey: string;
+  azureTranslatorRegion: string;
+  azureTranslatorRegionRequired: string;
+  azureTranslatorHelp: string;
   savedPdfList: string;
   noSavedPdf: string;
   openSavedPdf: string;

@@ -97,6 +97,12 @@ const EnglishTextResource: TextResource = {
   persistPdf: "Save web PDFs permanently (delete after 7 days without use)",
   translationSettings: "Translation settings",
   showTranslationByDefault: "Show selected-text translation by default",
+  azureTranslatorKey: "Azure AI Translator key (leave empty to use the built-in Chrome translator)",
+  azureTranslatorRegion:
+    "Azure AI Translator region (required; the location shown in 'Keys and Endpoint', e.g. japaneast)",
+  azureTranslatorRegionRequired: "The region is empty. Azure is not used until it is entered.",
+  azureTranslatorHelp:
+    "The key is stored only in this browser and is not synced. The free tier (F0) allows 2 million characters per month; after that, the built-in Chrome translator is used.",
   savedPdfList: "Saved PDFs",
   noSavedPdf: "No saved PDFs",
   openSavedPdf: "Open",

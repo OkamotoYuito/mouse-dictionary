@@ -152,3 +152,27 @@ test("inserts only the suggested meaning and saves its source separately", async
   area.dialog.remove();
   vi.restoreAllMocks();
 });
+
+test("uses Azure translation when available and falls back to the built-in translator", async () => {
+  const sendMessage = vi
+    .fn()
+    .mockImplementationOnce((_message, callback) => callback({ translation: "これはテストです。" }))
+    .mockImplementationOnce((_message, callback) => callback({ error: "Azureに接続できませんでした" }));
+  vi.stubGlobal("chrome", { runtime: { sendMessage } });
+  vi.stubGlobal("Translator", {
+    availability: vi.fn().mockResolvedValue("available"),
+    create: vi.fn().mockResolvedValue({ translate: vi.fn().mockResolvedValue("内蔵の訳") }),
+  });
+  const area = view.create({ ...settings, normalDialogStyles: {} });
+  document.body.append(area.dialog);
+  const result = area.dialog.querySelector("[data-translation-result]");
+  const status = area.dialog.querySelector("[data-translation-status]");
+  area.dialog.dispatchEvent(new CustomEvent("mouse-dictionary-translate-selection", { detail: "This is a\ntest." }));
+  await vi.waitFor(() => expect(result?.textContent).toBe("これはテストです。"));
+  expect(sendMessage.mock.calls[0][0]).toEqual({ type: "translate_text", text: "This is a test." });
+  expect(status?.textContent).toBe("英語 → 日本語（Azure）");
+  area.dialog.dispatchEvent(new CustomEvent("mouse-dictionary-translate-selection", { detail: "Another test." }));
+  await vi.waitFor(() => expect(result?.textContent).toBe("内蔵の訳"));
+  expect(status?.textContent).toBe("英語 → 日本語（Azureに接続できませんでした。内蔵翻訳を使用）");
+  area.dialog.remove();
+});

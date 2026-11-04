@@ -5,6 +5,8 @@
  */
 
 import { convertToBase64 } from "../main/lib/base64";
+import storage from "../main/lib/storage";
+import { AZURE_TRANSLATOR_KEY, translateWithAzure } from "./azure-translator";
 import pdfCache from "./pdf-cache";
 import ExpiringQueue from "./queue";
 import { suggestMeaning } from "./suggestions";
@@ -145,6 +147,17 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         break;
       }
       suggestMeaning(request.word).then(sendResponse);
+      return true;
+    }
+    case "translate_text": {
+      if (typeof request.text !== "string" || !request.text || request.text.length > 10000) {
+        sendResponse({});
+        break;
+      }
+      storage.local
+        .pick(AZURE_TRANSLATOR_KEY)
+        .then((config) => translateWithAzure(request.text, config))
+        .then(sendResponse, () => sendResponse({}));
       return true;
     }
     case "open_pdf": {

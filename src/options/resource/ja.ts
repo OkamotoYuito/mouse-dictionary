@@ -92,6 +92,12 @@ const JapaneseTextResource: TextResource = {
   persistPdf: "Web PDFを保存する（未使用7日間で自動削除）",
   translationSettings: "翻訳設定",
   showTranslationByDefault: "選択文の翻訳を初期状態で表示する",
+  azureTranslatorKey: "Azure AI Translator のキー（空欄ならChrome内蔵の翻訳を使用）",
+  azureTranslatorRegion:
+    "Azure AI Translator のリージョン（必須。Azureの「キーとエンドポイント」に表示される場所。例: japaneast）",
+  azureTranslatorRegionRequired: "リージョンが未入力です。入力するまでAzureは使われません。",
+  azureTranslatorHelp:
+    "キーはこのブラウザにのみ保存され、同期されません。無料枠（F0）は月200万文字までで、使い切るとChrome内蔵の翻訳に切り替わります。",
   savedPdfList: "保存したPDF",
   noSavedPdf: "保存したPDFはありません",
   openSavedPdf: "開く",

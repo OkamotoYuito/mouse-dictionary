@@ -8,45 +8,7 @@ import dom from "../lib/dom";
 import storage from "../lib/storage";
 import template from "../lib/template";
 import utils from "../lib/utils";
-
-const TEX_EXPRESSION =
-  /\\begin\{([A-Za-z*]+)\}[\s\S]*?\\end\{\1\}|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|(?<!\\)\$(?!\$)(?:\\.|[^$])*?(?<!\\)\$(?!\$)|\\[A-Za-z]+\*?(?:\{[^{}\n]*\})*/g;
-
-const normalizeSolarMasses = (text) =>
-  text.replace(/\$?(\d+(?:[.,]\d+)?)\s*M(?:[_^]?\s*\\odot|[☉⊙\uFFFD\u0099])\$?/g, (_, mass) => `${mass} solar masses`);
-
-const translatePreservingTex = async (translator, text) => {
-  text = normalizeSolarMasses(text);
-  const matches = [...text.matchAll(TEX_EXPRESSION)];
-  if (!matches.length) return translator.translate(text);
-
-  const protectedExpressions = [];
-  const pattern = new RegExp(TEX_EXPRESSION.source, TEX_EXPRESSION.flags);
-  const masked = text.replace(pattern, (expression) => {
-    const marker = `MDTEXTOKEN${protectedExpressions.length}END`;
-    protectedExpressions.push({ expression, marker });
-    return marker;
-  });
-  const translated = await translator.translate(masked);
-  if (protectedExpressions.every(({ marker }) => translated.includes(marker))) {
-    return protectedExpressions.reduce(
-      (result, { expression, marker }) => result.split(marker).join(expression),
-      translated,
-    );
-  }
-
-  let result = "";
-  let offset = 0;
-  for (const match of matches) {
-    const prose = text.slice(offset, match.index);
-    if (prose) result += await translator.translate(prose);
-    result += match[0];
-    offset = match.index + match[0].length;
-  }
-  const remaining = text.slice(offset);
-  if (remaining) result += await translator.translate(remaining);
-  return result;
-};
+import { prepareText, translatePreservingTex } from "./translation";
 
 const createDialogElement = (settings) => {
   const html = template.render(settings.dialogTemplate, {
@@ -192,8 +154,26 @@ const create = (settings) => {
       translationStatus.textContent = "翻訳する文章を選択してください";
       return;
     }
+    text = prepareText(text);
+    translationStatus.textContent = "翻訳しています…";
+    const azure = await new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "translate_text", text }, (response) => {
+          resolve(chrome.runtime.lastError ? null : response);
+        });
+      } catch {
+        resolve(null);
+      }
+    });
+    if (request !== translationRequestId) return;
+    if (azure?.translation) {
+      translationResult.textContent = azure.translation;
+      translationStatus.textContent = "英語 → 日本語（Azure）";
+      return;
+    }
+    const fallbackNote = azure?.error ? `（${azure.error}。内蔵翻訳を使用）` : "";
     if (!("Translator" in globalThis)) {
-      translationStatus.textContent = "このChromeではTranslator APIを利用できません";
+      translationStatus.textContent = `このChromeではTranslator APIを利用できません${fallbackNote}`;
       return;
     }
     translationStatus.textContent = "翻訳モデルを準備しています…";
@@ -218,7 +198,7 @@ const create = (settings) => {
       const translated = await translatePreservingTex(translator, text);
       if (request !== translationRequestId) return;
       translationResult.textContent = translated;
-      translationStatus.textContent = "英語 → 日本語";
+      translationStatus.textContent = `英語 → 日本語${fallbackNote}`;
     } catch (error) {
       console.error(error);
       if (request !== translationRequestId) return;
