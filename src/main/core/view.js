@@ -33,6 +33,10 @@ const create = (settings) => {
       .md-editor button:focus-visible, .md-editor input:focus-visible, .md-editor textarea:focus-visible { outline: 2px solid #5674e8; outline-offset: 2px; }
       .md-editor [data-add] { display: inline-flex; align-items: center; gap: 6px; color: #3b56b6; background: #eef2ff; }
       .md-editor [data-add]:hover { background: #dfe7ff; }
+      .md-editor [data-translate] { margin-left: 5px; color: #315a48; background: #e8f5ed; }
+      .md-editor [data-translate]:hover { background: #d7eddf; }
+      .md-editor [data-translation] { display: grid; gap: 6px; margin-top: 8px; padding: 9px; border: 1px solid #e0e8e3; border-radius: 8px; background: #f7fbf8; }
+      .md-editor [data-translation-result] { color: #263b30; white-space: pre-wrap; overflow-wrap: anywhere; }
       .md-editor [data-fields] { display: grid; gap: 8px; margin-top: 12px; }
       .md-editor label { display: grid; gap: 4px; color: #546177; font-size: 11px; font-weight: 600; }
       .md-editor input, .md-editor textarea { width: 100%; padding: 8px 10px; border: 1px solid #d8deea; border-radius: 8px; background: #f9fafc; color: #202b3c; font: 13px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -47,6 +51,11 @@ const create = (settings) => {
       .md-editor [data-suggestion] { text-align: left; background: #f3f6ff; color: #304b9c; overflow-wrap: anywhere; line-height: 1.5; }
     </style>
     <button type="button" data-add><span aria-hidden="true">＋</span> 意味を追加</button>
+    <button type="button" data-translate>選択文を翻訳</button>
+    <section data-translation hidden aria-label="翻訳結果">
+      <div class="md-actions"><span data-translation-status role="status" aria-live="polite"></span><button type="button" data-close-translation>閉じる</button></div>
+      <div data-translation-result></div>
+    </section>
     <div data-fields hidden>
       <label>単語<input name="word" placeholder="英単語" aria-label="英単語" required></label>
       <label>自分の意味<textarea name="meaning" placeholder="意味やメモを入力" aria-label="追加する意味" required></textarea></label>
@@ -64,6 +73,11 @@ const create = (settings) => {
   const suggestionStatus = form.querySelector("[data-suggest-status]");
   let suggestionRequestId = 0;
   let pendingSources = [];
+  const translationPanel = form.querySelector("[data-translation]");
+  const translationStatus = form.querySelector("[data-translation-status]");
+  const translationResult = form.querySelector("[data-translation-result]");
+  let translationRequestId = 0;
+  let translatorPromise = null;
   const clearSuggestions = () => {
     firstSuggestion.hidden = true;
     firstSuggestion.textContent = "";
@@ -117,6 +131,59 @@ const create = (settings) => {
     });
   };
   form.querySelector("[data-suggest]").addEventListener("click", suggest);
+  const translateButton = form.querySelector("[data-translate]");
+  let selectedText = "";
+  translateButton.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    selectedText = window.getSelection()?.toString().trim() ?? "";
+  });
+  translateButton.addEventListener("click", async () => {
+    const text = selectedText || window.getSelection()?.toString().trim() || "";
+    const request = ++translationRequestId;
+    translationPanel.hidden = false;
+    translationResult.textContent = "";
+    if (!text) {
+      translationStatus.textContent = "翻訳する文章を選択してください";
+      return;
+    }
+    if (!("Translator" in globalThis)) {
+      translationStatus.textContent = "このChromeではTranslator APIを利用できません";
+      return;
+    }
+    translationStatus.textContent = "翻訳モデルを準備しています…";
+    if (!translatorPromise) {
+      translatorPromise = globalThis.Translator.create({
+        sourceLanguage: "en",
+        targetLanguage: "ja",
+        monitor(monitor) {
+          monitor.addEventListener("downloadprogress", (event) => {
+            if (!translationPanel.hidden)
+              translationStatus.textContent = `翻訳モデルをダウンロード中… ${Math.round(event.loaded * 100)}%`;
+          });
+        },
+      });
+      translatorPromise.catch(() => {
+        translatorPromise = null;
+      });
+    }
+    try {
+      const translator = await translatorPromise;
+      if (request !== translationRequestId) return;
+      translationStatus.textContent = "翻訳しています…";
+      const translated = await translator.translate(text);
+      if (request !== translationRequestId) return;
+      translationResult.textContent = translated;
+      translationStatus.textContent = "英語 → 日本語";
+    } catch (error) {
+      console.error(error);
+      if (request === translationRequestId) translationStatus.textContent = "翻訳できませんでした。もう一度お試しください";
+    }
+  });
+  form.querySelector("[data-close-translation]").addEventListener("click", () => {
+    translationRequestId++;
+    translationPanel.hidden = true;
+  });
   let editingHead = null;
   let requestId = 0;
   const loadMeaning = async () => {
