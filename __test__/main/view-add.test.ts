@@ -1,10 +1,17 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import config from "../../src/main/core/config";
 import events from "../../src/main/core/events";
 import view from "../../src/main/core/view";
 import storage from "../../src/main/lib/storage";
 import utils from "../../src/main/lib/utils";
 import settings from "../../src/main/settings";
+
+beforeEach(() =>
+  vi.stubGlobal("chrome", {
+    runtime: { sendMessage: vi.fn((_request, done) => done({ meaning: "" })), onMessage: { addListener: vi.fn() } },
+  }),
+);
+afterEach(() => vi.unstubAllGlobals());
 
 test("adds an escaped meaning without replacing the existing dictionary entry", async () => {
   vi.spyOn(storage.local, "pick").mockResolvedValue("既存の意味");
@@ -26,7 +33,6 @@ test("adds an escaped meaning without replacing the existing dictionary entry", 
 });
 
 test("double-clicking selected PDF text opens the meaning form with that word", async () => {
-  vi.stubGlobal("chrome", { runtime: { onMessage: { addListener: vi.fn() } } });
   vi.spyOn(config, "isDataReady").mockResolvedValue(true);
   const selection = vi.spyOn(utils, "getSelection").mockReturnValue("");
   const area = view.create({ ...settings, normalDialogStyles: {}, movingDialogStyles: {} });
@@ -65,6 +71,33 @@ test("edits a plural word to its singular and updates an existing custom meaning
   await vi.waitFor(() =>
     expect(save).toHaveBeenCalledWith({ "**** custom word ****:cloud": "新しい意味 &lt;sky&gt;" }),
   );
+  area.dialog.remove();
+  vi.restoreAllMocks();
+});
+
+test("shows a suggestion without overwriting a draft, and ignores stale results", () => {
+  const replies: Array<(result: { meaning: string }) => void> = [];
+  vi.stubGlobal("chrome", { runtime: { sendMessage: vi.fn((_message, callback) => replies.push(callback)) } });
+  vi.spyOn(storage.local, "pick").mockResolvedValue(undefined);
+  const area = view.create({ ...settings, normalDialogStyles: {} });
+  document.body.append(area.dialog);
+  area.dialog.dispatchEvent(new CustomEvent("mouse-dictionary-add-meaning", { detail: "cloud" }));
+  const word = area.dialog.querySelector<HTMLInputElement>('[name="word"]');
+  const meaning = area.dialog.querySelector<HTMLTextAreaElement>('[name="meaning"]');
+  const suggestion = area.dialog.querySelector<HTMLButtonElement>("[data-suggestion]");
+  if (!word || !meaning || !suggestion) throw new Error("Missing inputs");
+  word.value = "star";
+  word.dispatchEvent(new Event("input", { bubbles: true }));
+  replies[0]({ meaning: "雲" });
+  expect(suggestion.hidden).toBe(true);
+  area.dialog.querySelector<HTMLButtonElement>("[data-suggest]")?.click();
+  meaning.value = "自分のメモ";
+  meaning.dispatchEvent(new Event("input", { bubbles: true }));
+  replies[1]({ meaning: "星" });
+  expect(meaning.value).toBe("自分のメモ");
+  expect(suggestion.textContent).toBe("星");
+  suggestion.click();
+  expect(meaning.value).toBe("自分のメモ\n星");
   area.dialog.remove();
   vi.restoreAllMocks();
 });

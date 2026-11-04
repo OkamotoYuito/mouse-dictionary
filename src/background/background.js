@@ -134,6 +134,26 @@ chrome.alarms?.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   switch (request?.type) {
+    case "suggest_meaning": {
+      if (
+        typeof request.word !== "string" ||
+        !/^[a-zA-Z]+(?:['’-][a-zA-Z]+)*$/.test(request.word) ||
+        request.word.length > 80
+      ) {
+        sendResponse({ error: "英単語を入力してください" });
+        break;
+      }
+      const url = new URL("https://api.excelapi.org/dictionary/enja");
+      url.searchParams.set("word", request.word);
+      fetch(url, { signal: AbortSignal.timeout(10000) })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return { meaning: (await response.text()).trim().slice(0, 5000) };
+        })
+        .then(sendResponse)
+        .catch(() => sendResponse({ error: "候補を取得できませんでした" }));
+      return true;
+    }
     case "open_pdf": {
       openPdf(request, sendResponse).catch(() => sendResponse());
       return true;

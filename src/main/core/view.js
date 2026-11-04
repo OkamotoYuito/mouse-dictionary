@@ -43,11 +43,14 @@ const create = (settings) => {
       .md-editor [data-load], .md-editor [data-cancel] { background: #f1f3f7; color: #49566a; }
       .md-editor [data-load]:hover, .md-editor [data-cancel]:hover { background: #e3e7ef; }
       .md-editor [data-status] { color: #65748b; font-size: 11px; overflow-wrap: anywhere; }
+      .md-editor [data-suggestion] { text-align: left; background: #f3f6ff; color: #304b9c; overflow-wrap: anywhere; line-height: 1.5; }
     </style>
     <button type="button" data-add><span aria-hidden="true">＋</span> 意味を追加</button>
     <div data-fields hidden>
       <label>単語<input name="word" placeholder="英単語" aria-label="英単語" required></label>
       <label>自分の意味<textarea name="meaning" placeholder="意味やメモを入力" aria-label="追加する意味" required></textarea></label>
+      <button type="button" data-suggestion hidden></button>
+      <div class="md-actions"><button type="button" data-suggest>意味の候補を取得</button><span data-suggest-status role="status" aria-live="polite"></span></div>
       <div class="md-actions"><button type="submit">保存</button><button type="button" data-load>登録済みを編集</button><button type="button" data-cancel>キャンセル</button></div>
       <span data-status role="status" aria-live="polite"></span>
     </div></form>`);
@@ -55,6 +58,39 @@ const create = (settings) => {
   const word = form.querySelector('[name="word"]');
   const meaning = form.querySelector('[name="meaning"]');
   const status = form.querySelector("[data-status]");
+  const suggestion = form.querySelector("[data-suggestion]");
+  const suggestionStatus = form.querySelector("[data-suggest-status]");
+  let suggestionRequestId = 0;
+  const suggest = () => {
+    const head = word.value.trim();
+    const request = ++suggestionRequestId;
+    suggestion.hidden = true;
+    if (!/^[a-zA-Z]+(?:['’-][a-zA-Z]+)*$/.test(head) || head.length > 80) {
+      suggestionStatus.textContent = "英単語を入力してください";
+      return;
+    }
+    suggestionStatus.textContent = "ExcelAPIから候補を取得中…";
+    chrome.runtime.sendMessage({ type: "suggest_meaning", word: head }, (response) => {
+      if (request !== suggestionRequestId || fields.hidden || word.value.trim() !== head) return;
+      if (chrome.runtime.lastError || response?.error) {
+        suggestionStatus.textContent = response?.error ?? "候補を取得できませんでした";
+      } else if (!response?.meaning) {
+        suggestionStatus.textContent = "候補が見つかりませんでした";
+      } else {
+        suggestion.textContent = response.meaning;
+        suggestion.hidden = false;
+        suggestionStatus.textContent = "候補を押すと入力欄に追加します（ExcelAPI）";
+      }
+    });
+  };
+  form.querySelector("[data-suggest]").addEventListener("click", suggest);
+  suggestion.addEventListener("click", () => {
+    meaning.value = meaning.value ? `${meaning.value}\n${suggestion.textContent}` : suggestion.textContent;
+    meaning.dispatchEvent(new Event("input", { bubbles: true }));
+    suggestion.hidden = true;
+    suggestionStatus.textContent = "候補を入力欄に追加しました";
+    meaning.focus();
+  });
   let editingHead = null;
   let requestId = 0;
   const loadMeaning = async () => {
@@ -82,11 +118,15 @@ const create = (settings) => {
     editingHead = null;
     meaning.focus();
     loadMeaning();
+    if (head) suggest();
   };
   form.querySelector("[data-add]").addEventListener("click", () => openForm(utils.getSelection()?.trim() ?? ""));
   dialog.addEventListener("mouse-dictionary-add-meaning", (event) => openForm(event.detail));
   form.querySelector("[data-load]").addEventListener("click", loadMeaning);
   word.addEventListener("input", () => {
+    suggestionRequestId++;
+    suggestion.hidden = true;
+    suggestionStatus.textContent = "単語を変更した場合は候補を再取得できます";
     requestId++;
     editingHead = null;
     status.textContent = "単語を変更しました。既存の意味を編集する場合は読み込んでください";
@@ -95,6 +135,9 @@ const create = (settings) => {
     requestId++;
   });
   form.querySelector("[data-cancel]").addEventListener("click", () => {
+    suggestionRequestId++;
+    suggestion.hidden = true;
+    suggestionStatus.textContent = "";
     fields.hidden = true;
     requestId++;
     status.textContent = "";
@@ -114,6 +157,8 @@ const create = (settings) => {
       await storage.local.set({ [key]: existing && editingHead !== head ? `${existing}<br>${escaped}` : escaped });
       meaning.value = "";
       fields.hidden = true;
+      suggestionRequestId++;
+      suggestion.hidden = true;
       status.textContent = "";
       dialog.dispatchEvent(new CustomEvent("mouse-dictionary-entry-saved", { detail: head }));
     } catch (error) {

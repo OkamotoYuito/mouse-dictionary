@@ -9,7 +9,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "https://api.excelapi.org/*"],
   "background": {
     "scripts": ["background.js"],
     "persistent": false
