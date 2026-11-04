@@ -12,7 +12,11 @@ import utils from "../lib/utils";
 const TEX_EXPRESSION =
   /\\begin\{([A-Za-z*]+)\}[\s\S]*?\\end\{\1\}|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|(?<!\\)\$(?!\$)(?:\\.|[^$])*?(?<!\\)\$(?!\$)|\\[A-Za-z]+\*?(?:\{[^{}\n]*\})*/g;
 
+const normalizeSolarMasses = (text) =>
+  text.replace(/\$?(\d+(?:[.,]\d+)?)\s*M(?:[_^]?\s*\\odot|[☉⊙\uFFFD\u0099])\$?/g, (_, mass) => `${mass} solar masses`);
+
 const translatePreservingTex = async (translator, text) => {
+  text = normalizeSolarMasses(text);
   const matches = [...text.matchAll(TEX_EXPRESSION)];
   if (!matches.length) return translator.translate(text);
 
@@ -124,6 +128,7 @@ const create = (settings) => {
     translateButton.textContent = visible ? "翻訳を隠す" : "翻訳を表示";
     translateButton.setAttribute("aria-expanded", String(visible));
   };
+  setTranslationVisible(settings.showTranslationByDefault !== false);
   const clearSuggestions = () => {
     firstSuggestion.hidden = true;
     firstSuggestion.textContent = "";

@@ -78,6 +78,8 @@ export type TextResource = {
   skipPdfConfirmation: string;
   pdfSettings: string;
   persistPdf: string;
+  translationSettings: string;
+  showTranslationByDefault: string;
   savedPdfList: string;
   noSavedPdf: string;
   openSavedPdf: string;

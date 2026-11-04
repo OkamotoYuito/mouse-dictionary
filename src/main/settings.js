@@ -13,6 +13,7 @@ export default {
   skipPdfConfirmation: false,
   persistPdf: true,
   pdfLinkTarget: "blank",
+  showTranslationByDefault: true,
   pdfUrl: "",
   backgroundColor: "#ffffff",
   headFontColor: "#000088",

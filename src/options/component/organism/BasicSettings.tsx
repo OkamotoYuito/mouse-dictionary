@@ -112,6 +112,16 @@ export const BasicSettings: React.FC<Props> = (props) => {
             checked={settings.persistPdf}
           />
         </label>
+        <h3>{res.get("translationSettings")}</h3>
+        <label>
+          {res.get("showTranslationByDefault")}
+          <input
+            type="checkbox"
+            name="showTranslationByDefault"
+            onChange={(e) => update({ showTranslationByDefault: e.target.checked })}
+            checked={settings.showTranslationByDefault}
+          />
+        </label>
         <label>{res.get("pdfLinkTarget")}</label>
         <Select
           value={settings.pdfLinkTarget}

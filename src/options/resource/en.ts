@@ -95,6 +95,8 @@ const EnglishTextResource: TextResource = {
   skipPdfConfirmation: "Skip PDF download confirmation",
   pdfSettings: "PDF settings",
   persistPdf: "Save web PDFs permanently (delete after 7 days without use)",
+  translationSettings: "Translation settings",
+  showTranslationByDefault: "Show selected-text translation by default",
   savedPdfList: "Saved PDFs",
   noSavedPdf: "No saved PDFs",
   openSavedPdf: "Open",

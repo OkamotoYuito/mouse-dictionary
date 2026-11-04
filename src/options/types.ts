@@ -18,6 +18,7 @@ export type MouseDictionaryBasicSettings = {
   skipPdfConfirmation: boolean;
   persistPdf: boolean;
   pdfLinkTarget: "self" | "blank";
+  showTranslationByDefault: boolean;
 };
 
 export type MouseDictionaryAdvancedSettings = {

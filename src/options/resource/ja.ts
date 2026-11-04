@@ -90,6 +90,8 @@ const JapaneseTextResource: TextResource = {
   skipPdfConfirmation: "PDFファイルのダウンロード確認を省略する",
   pdfSettings: "PDF設定",
   persistPdf: "Web PDFを保存する（未使用7日間で自動削除）",
+  translationSettings: "翻訳設定",
+  showTranslationByDefault: "選択文の翻訳を初期状態で表示する",
   savedPdfList: "保存したPDF",
   noSavedPdf: "保存したPDFはありません",
   openSavedPdf: "開く",
