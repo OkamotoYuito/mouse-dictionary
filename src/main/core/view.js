@@ -35,11 +35,13 @@ const create = (settings) => {
   const meaning = form.querySelector('[name="meaning"]');
   const status = form.querySelector("[data-status]");
   form.addEventListener("mousedown", (event) => event.stopPropagation());
-  form.querySelector("[data-add]").addEventListener("click", () => {
+  const openForm = (head) => {
     fields.hidden = false;
-    word.value = utils.getSelection()?.trim() ?? "";
-    word.focus();
-  });
+    word.value = head;
+    meaning.focus();
+  };
+  form.querySelector("[data-add]").addEventListener("click", () => openForm(utils.getSelection()?.trim() ?? ""));
+  dialog.addEventListener("mouse-dictionary-add-meaning", (event) => openForm(event.detail));
   form.querySelector("[data-cancel]").addEventListener("click", () => {
     fields.hidden = true;
     status.textContent = "";

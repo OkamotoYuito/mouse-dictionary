@@ -1,6 +1,9 @@
 import { expect, test, vi } from "vitest";
+import config from "../../src/main/core/config";
+import events from "../../src/main/core/events";
 import view from "../../src/main/core/view";
 import storage from "../../src/main/lib/storage";
+import utils from "../../src/main/lib/utils";
 import settings from "../../src/main/settings";
 
 test("adds an escaped meaning without replacing the existing dictionary entry", async () => {
@@ -20,4 +23,23 @@ test("adds an escaped meaning without replacing the existing dictionary entry", 
   );
   area.dialog.remove();
   vi.restoreAllMocks();
+});
+
+test("double-clicking selected PDF text opens the meaning form with that word", async () => {
+  vi.stubGlobal("chrome", { runtime: { onMessage: { addListener: vi.fn() } } });
+  vi.spyOn(config, "isDataReady").mockResolvedValue(true);
+  const selection = vi.spyOn(utils, "getSelection").mockReturnValue("");
+  const area = view.create({ ...settings, normalDialogStyles: {}, movingDialogStyles: {} });
+  const text = document.createElement("p");
+  text.textContent = "Nebula";
+  document.body.append(text, area.dialog);
+  await events.attach({ ...settings, normalDialogStyles: {}, movingDialogStyles: {} }, area.dialog, vi.fn());
+  selection.mockReturnValue("Nebula");
+  text.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, composed: true }));
+  expect(area.dialog.querySelector<HTMLInputElement>('[name="word"]')?.value).toBe("Nebula");
+  expect(area.dialog.querySelector<HTMLElement>("[data-fields]")?.hidden).toBe(false);
+  expect(document.activeElement).toBe(area.dialog.querySelector('[name="meaning"]'));
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

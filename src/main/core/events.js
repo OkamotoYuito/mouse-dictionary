@@ -32,6 +32,18 @@ const attach = async (settings, dialog, doUpdateContent) => {
 
   setDialogEvents(dialog);
 
+  document.body.addEventListener("dblclick", (event) => {
+    if (
+      event.composedPath().includes(dialog) ||
+      /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) ||
+      event.target.isContentEditable
+    )
+      return;
+    const selected = utils.getSelection()?.trim();
+    if (!selected || !/^[a-zA-Z]+(?:['’-][a-zA-Z]+)*$/.test(selected)) return;
+    dialog.dispatchEvent(new CustomEvent("mouse-dictionary-add-meaning", { detail: selected }));
+  });
+
   document.body.addEventListener("mousedown", () => {
     lookuper.suspended = true;
   });
