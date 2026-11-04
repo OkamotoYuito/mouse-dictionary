@@ -52,7 +52,18 @@ const attach = async (settings, dialog, doUpdateContent) => {
     draggable.onMouseUp(e);
     lookuper.suspended = false;
 
-    const updated = await lookuper.aimedLookup(utils.getSelection());
+    const selectedText = window.getSelection()?.toString().trim() ?? "";
+    if (!e.composedPath().includes(dialog)) {
+      const isVisible = dialog.getAttribute("data-mouse-dictionary-hidden") !== "true";
+      const isSentence = (selectedText.match(/[a-zA-Z]{2,}/g) ?? []).length >= 2;
+      if (isVisible && isSentence) {
+        dialog.dispatchEvent(new CustomEvent("mouse-dictionary-translate-selection", { detail: selectedText }));
+      } else {
+        dialog.dispatchEvent(new CustomEvent("mouse-dictionary-hide-translation"));
+      }
+    }
+
+    const updated = await lookuper.aimedLookup(selectedText);
     if (updated) {
       draggable.resetScroll();
     }

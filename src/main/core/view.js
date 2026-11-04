@@ -138,8 +138,7 @@ const create = (settings) => {
     event.stopPropagation();
     selectedText = window.getSelection()?.toString().trim() ?? "";
   });
-  translateButton.addEventListener("click", async () => {
-    const text = selectedText || window.getSelection()?.toString().trim() || "";
+  const translateText = async (text) => {
     const request = ++translationRequestId;
     translationPanel.hidden = false;
     translationResult.textContent = "";
@@ -177,8 +176,17 @@ const create = (settings) => {
       translationStatus.textContent = "英語 → 日本語";
     } catch (error) {
       console.error(error);
-      if (request === translationRequestId) translationStatus.textContent = "翻訳できませんでした。もう一度お試しください";
+      if (request === translationRequestId)
+        translationStatus.textContent = `翻訳できませんでした（${error?.name ?? "エラー"}）`;
     }
+  };
+  translateButton.addEventListener("click", () => {
+    translateText(selectedText || window.getSelection()?.toString().trim() || "");
+  });
+  dialog.addEventListener("mouse-dictionary-translate-selection", (event) => translateText(event.detail));
+  dialog.addEventListener("mouse-dictionary-hide-translation", () => {
+    translationRequestId++;
+    translationPanel.hidden = true;
   });
   form.querySelector("[data-close-translation]").addEventListener("click", () => {
     translationRequestId++;
