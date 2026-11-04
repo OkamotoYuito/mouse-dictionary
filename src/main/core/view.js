@@ -43,13 +43,14 @@ const create = (settings) => {
       .md-editor [data-load], .md-editor [data-cancel] { background: #f1f3f7; color: #49566a; }
       .md-editor [data-load]:hover, .md-editor [data-cancel]:hover { background: #e3e7ef; }
       .md-editor [data-status] { color: #65748b; font-size: 11px; overflow-wrap: anywhere; }
+      .md-editor [data-suggestions] { display: grid; gap: 5px; }
       .md-editor [data-suggestion] { text-align: left; background: #f3f6ff; color: #304b9c; overflow-wrap: anywhere; line-height: 1.5; }
     </style>
     <button type="button" data-add><span aria-hidden="true">＋</span> 意味を追加</button>
     <div data-fields hidden>
       <label>単語<input name="word" placeholder="英単語" aria-label="英単語" required></label>
       <label>自分の意味<textarea name="meaning" placeholder="意味やメモを入力" aria-label="追加する意味" required></textarea></label>
-      <button type="button" data-suggestion hidden></button>
+      <div data-suggestions><button type="button" data-suggestion hidden></button></div>
       <div class="md-actions"><button type="button" data-suggest>意味の候補を取得</button><span data-suggest-status role="status" aria-live="polite"></span></div>
       <div class="md-actions"><button type="submit">保存</button><button type="button" data-load>登録済みを編集</button><button type="button" data-cancel>キャンセル</button></div>
       <span data-status role="status" aria-live="polite"></span>
@@ -58,15 +59,35 @@ const create = (settings) => {
   const word = form.querySelector('[name="word"]');
   const meaning = form.querySelector('[name="meaning"]');
   const status = form.querySelector("[data-status]");
-  const suggestion = form.querySelector("[data-suggestion]");
+  const suggestions = form.querySelector("[data-suggestions]");
+  const firstSuggestion = form.querySelector("[data-suggestion]");
   const suggestionStatus = form.querySelector("[data-suggest-status]");
   let suggestionRequestId = 0;
-  let suggestionSource = null;
   let pendingSources = [];
+  const clearSuggestions = () => {
+    firstSuggestion.hidden = true;
+    firstSuggestion.textContent = "";
+    firstSuggestion.onclick = null;
+    suggestions.querySelectorAll("[data-suggestion]").forEach((button, index) => {
+      if (index) button.remove();
+    });
+  };
+  const addSuggestion = (button, candidate, head) => {
+    button.onclick = () => {
+      const selected = candidate.meaning;
+      if (!meaning.value.split("\n").includes(selected))
+        meaning.value = meaning.value ? `${meaning.value}\n${selected}` : selected;
+      if (candidate.source === "ウィクショナリー日本語版" && !pendingSources.includes(head.toLowerCase()))
+        pendingSources.push(head.toLowerCase());
+      meaning.dispatchEvent(new Event("input", { bubbles: true }));
+      suggestionStatus.textContent = "候補を入力欄に追加しました";
+      meaning.focus();
+    };
+  };
   const suggest = () => {
     const head = word.value.trim();
     const request = ++suggestionRequestId;
-    suggestion.hidden = true;
+    clearSuggestions();
     if (!/^[a-zA-Z]+(?:['’-][a-zA-Z]+)*$/.test(head) || head.length > 80) {
       suggestionStatus.textContent = "英単語を入力してください";
       return;
@@ -79,23 +100,23 @@ const create = (settings) => {
       } else if (!response?.meaning) {
         suggestionStatus.textContent = "候補が見つかりませんでした";
       } else {
-        suggestion.textContent = response.meaning;
-        suggestionSource = response.source === "ウィクショナリー日本語版" ? head.toLowerCase() : null;
-        suggestion.hidden = false;
-        suggestionStatus.textContent = "候補を押すと入力欄に追加します";
+        const candidates = [response, ...(response.alternatives ?? [])];
+        candidates.forEach((candidate, index) => {
+          const button = index === 0 ? firstSuggestion : document.createElement("button");
+          button.hidden = false;
+          if (index) {
+            button.type = "button";
+            button.dataset.suggestion = "";
+          }
+          button.textContent = candidate.meaning;
+          addSuggestion(button, candidate, head);
+          suggestions.appendChild(button);
+        });
+        suggestionStatus.textContent = `${candidates.length}件の候補。押すと入力欄に追加します`;
       }
     });
   };
   form.querySelector("[data-suggest]").addEventListener("click", suggest);
-  suggestion.addEventListener("click", () => {
-    const selected = suggestion.textContent;
-    meaning.value = meaning.value ? `${meaning.value}\n${selected}` : selected;
-    if (suggestionSource && !pendingSources.includes(suggestionSource)) pendingSources.push(suggestionSource);
-    meaning.dispatchEvent(new Event("input", { bubbles: true }));
-    suggestion.hidden = true;
-    suggestionStatus.textContent = "候補を入力欄に追加しました";
-    meaning.focus();
-  });
   let editingHead = null;
   let requestId = 0;
   const loadMeaning = async () => {
@@ -132,7 +153,7 @@ const create = (settings) => {
   form.querySelector("[data-load]").addEventListener("click", loadMeaning);
   word.addEventListener("input", () => {
     suggestionRequestId++;
-    suggestion.hidden = true;
+    clearSuggestions();
     suggestionStatus.textContent = "単語を変更した場合は候補を再取得できます";
     requestId++;
     editingHead = null;
@@ -143,7 +164,7 @@ const create = (settings) => {
   });
   form.querySelector("[data-cancel]").addEventListener("click", () => {
     suggestionRequestId++;
-    suggestion.hidden = true;
+    clearSuggestions();
     suggestionStatus.textContent = "";
     fields.hidden = true;
     requestId++;
@@ -173,7 +194,7 @@ const create = (settings) => {
       meaning.value = "";
       fields.hidden = true;
       suggestionRequestId++;
-      suggestion.hidden = true;
+      clearSuggestions();
       status.textContent = "";
       dialog.dispatchEvent(new CustomEvent("mouse-dictionary-entry-saved", { detail: head }));
     } catch (error) {
