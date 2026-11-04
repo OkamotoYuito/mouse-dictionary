@@ -82,7 +82,7 @@ const create = (settings) => {
         suggestion.textContent = response.meaning;
         suggestionSource = response.source === "ウィクショナリー日本語版" ? head.toLowerCase() : null;
         suggestion.hidden = false;
-        suggestionStatus.textContent = `候補を押すと入力欄に追加します（${response.source ?? "辞書"}）`;
+        suggestionStatus.textContent = "候補を押すと入力欄に追加します";
       }
     });
   };

@@ -141,26 +141,11 @@ export default class Lookuper {
 
 const fetchDescriptions = async (entries) => {
   const primaryDescriptions = await storage.local.get(entries);
-  const customDescriptions = await storage.local.get(
-    entries.flatMap((entry) => [`**** custom word ****:${entry}`, `**** custom source ****:${entry}`]),
-  );
+  const customDescriptions = await storage.local.get(entries.map((entry) => `**** custom word ****:${entry}`));
   for (const entry of entries) {
     const custom = customDescriptions[`**** custom word ****:${entry}`];
     if (custom) {
-      const sources = customDescriptions[`**** custom source ****:${entry}`];
-      const credits = Array.isArray(sources)
-        ? sources
-            .filter((word) => typeof word === "string" && /^[a-z]+(?:['’-][a-z]+)*$/.test(word) && word.length <= 80)
-            .map(
-              (word) =>
-                `<small>出典: ウィクショナリー日本語版 <a href="https://ja.wiktionary.org/wiki/${encodeURIComponent(word)}" target="_blank" rel="noopener noreferrer">${word}</a>（抜粋・<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>）</small>`,
-            )
-            .join("<br>")
-        : "";
-      const description = credits ? `${custom}<br>${credits}` : custom;
-      primaryDescriptions[entry] = primaryDescriptions[entry]
-        ? `${primaryDescriptions[entry]}<br>${description}`
-        : description;
+      primaryDescriptions[entry] = primaryDescriptions[entry] ? `${primaryDescriptions[entry]}<br>${custom}` : custom;
     }
   }
   const primaryHeads = entries.filter((e) => primaryDescriptions[e]);
