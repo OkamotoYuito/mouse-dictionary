@@ -61,7 +61,8 @@ const create = (settings) => {
   const suggestion = form.querySelector("[data-suggestion]");
   const suggestionStatus = form.querySelector("[data-suggest-status]");
   let suggestionRequestId = 0;
-  let suggestionAttribution = "";
+  let suggestionSource = null;
+  let pendingSources = [];
   const suggest = () => {
     const head = word.value.trim();
     const request = ++suggestionRequestId;
@@ -79,9 +80,7 @@ const create = (settings) => {
         suggestionStatus.textContent = "候補が見つかりませんでした";
       } else {
         suggestion.textContent = response.meaning;
-        suggestionAttribution = response.sourceUrl
-          ? `\n出典: ${response.source} ${response.sourceUrl}（抜粋・CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/）`
-          : "";
+        suggestionSource = response.source === "ウィクショナリー日本語版" ? head.toLowerCase() : null;
         suggestion.hidden = false;
         suggestionStatus.textContent = `候補を押すと入力欄に追加します（${response.source ?? "辞書"}）`;
       }
@@ -89,8 +88,9 @@ const create = (settings) => {
   };
   form.querySelector("[data-suggest]").addEventListener("click", suggest);
   suggestion.addEventListener("click", () => {
-    const selected = `${suggestion.textContent}${suggestionAttribution}`;
+    const selected = suggestion.textContent;
     meaning.value = meaning.value ? `${meaning.value}\n${selected}` : selected;
+    if (suggestionSource && !pendingSources.includes(suggestionSource)) pendingSources.push(suggestionSource);
     meaning.dispatchEvent(new Event("input", { bubbles: true }));
     suggestion.hidden = true;
     suggestionStatus.textContent = "候補を入力欄に追加しました";
@@ -108,6 +108,7 @@ const create = (settings) => {
       const decoder = document.createElement("textarea");
       decoder.innerHTML = (existing ?? "").replace(/<br\s*\/?\s*>/gi, "\n");
       meaning.value = decoder.value;
+      pendingSources = [];
       editingHead = existing ? head : null;
       status.textContent = existing ? "登録済みの意味を編集中" : "登録済みの意味はありません";
     } catch (error) {
@@ -120,6 +121,7 @@ const create = (settings) => {
     fields.hidden = false;
     word.value = head;
     meaning.value = "";
+    pendingSources = [];
     editingHead = null;
     meaning.focus();
     loadMeaning();
@@ -155,11 +157,19 @@ const create = (settings) => {
     try {
       const key = `**** custom word ****:${head}`;
       const existing = await storage.local.pick(key);
+      const sourceKey = `**** custom source ****:${head}`;
+      const existingSources = pendingSources.length ? await storage.local.pick(sourceKey) : null;
       const escaped = value.replace(
         /[&<>"']/g,
         (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char],
       );
-      await storage.local.set({ [key]: existing && editingHead !== head ? `${existing}<br>${escaped}` : escaped });
+      const values = { [key]: existing && editingHead !== head ? `${existing}<br>${escaped}` : escaped };
+      if (pendingSources.length) {
+        values[sourceKey] = [
+          ...new Set([...(Array.isArray(existingSources) ? existingSources : []), ...pendingSources]),
+        ];
+      }
+      await storage.local.set(values);
       meaning.value = "";
       fields.hidden = true;
       suggestionRequestId++;

@@ -101,3 +101,29 @@ test("shows a suggestion without overwriting a draft, and ignores stale results"
   area.dialog.remove();
   vi.restoreAllMocks();
 });
+
+test("inserts only the suggested meaning and saves its source separately", async () => {
+  vi.stubGlobal("chrome", {
+    runtime: {
+      sendMessage: vi.fn((_message, callback) => callback({ meaning: "星雲", source: "ウィクショナリー日本語版" })),
+    },
+  });
+  vi.spyOn(storage.local, "pick").mockResolvedValue(undefined);
+  const save = vi.spyOn(storage.local, "set").mockResolvedValue(undefined);
+  const area = view.create({ ...settings, normalDialogStyles: {} });
+  document.body.append(area.dialog);
+  area.dialog.dispatchEvent(new CustomEvent("mouse-dictionary-add-meaning", { detail: "nebula" }));
+  await vi.waitFor(() => expect(area.dialog.querySelector<HTMLButtonElement>("[data-suggestion]")?.hidden).toBe(false));
+  area.dialog.querySelector<HTMLButtonElement>("[data-suggestion]")?.click();
+  const meaning = area.dialog.querySelector<HTMLTextAreaElement>('[name="meaning"]');
+  expect(meaning?.value).toBe("星雲");
+  area.dialog.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await vi.waitFor(() =>
+    expect(save).toHaveBeenCalledWith({
+      "**** custom word ****:nebula": "星雲",
+      "**** custom source ****:nebula": ["nebula"],
+    }),
+  );
+  area.dialog.remove();
+  vi.restoreAllMocks();
+});
