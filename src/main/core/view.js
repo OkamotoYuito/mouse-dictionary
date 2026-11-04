@@ -61,6 +61,7 @@ const create = (settings) => {
   const suggestion = form.querySelector("[data-suggestion]");
   const suggestionStatus = form.querySelector("[data-suggest-status]");
   let suggestionRequestId = 0;
+  let suggestionAttribution = "";
   const suggest = () => {
     const head = word.value.trim();
     const request = ++suggestionRequestId;
@@ -69,7 +70,7 @@ const create = (settings) => {
       suggestionStatus.textContent = "英単語を入力してください";
       return;
     }
-    suggestionStatus.textContent = "ExcelAPIから候補を取得中…";
+    suggestionStatus.textContent = "辞書から候補を取得中…";
     chrome.runtime.sendMessage({ type: "suggest_meaning", word: head }, (response) => {
       if (request !== suggestionRequestId || fields.hidden || word.value.trim() !== head) return;
       if (chrome.runtime.lastError || response?.error) {
@@ -78,14 +79,18 @@ const create = (settings) => {
         suggestionStatus.textContent = "候補が見つかりませんでした";
       } else {
         suggestion.textContent = response.meaning;
+        suggestionAttribution = response.sourceUrl
+          ? `\n出典: ${response.source} ${response.sourceUrl}（抜粋・CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/）`
+          : "";
         suggestion.hidden = false;
-        suggestionStatus.textContent = "候補を押すと入力欄に追加します（ExcelAPI）";
+        suggestionStatus.textContent = `候補を押すと入力欄に追加します（${response.source ?? "辞書"}）`;
       }
     });
   };
   form.querySelector("[data-suggest]").addEventListener("click", suggest);
   suggestion.addEventListener("click", () => {
-    meaning.value = meaning.value ? `${meaning.value}\n${suggestion.textContent}` : suggestion.textContent;
+    const selected = `${suggestion.textContent}${suggestionAttribution}`;
+    meaning.value = meaning.value ? `${meaning.value}\n${selected}` : selected;
     meaning.dispatchEvent(new Event("input", { bubbles: true }));
     suggestion.hidden = true;
     suggestionStatus.textContent = "候補を入力欄に追加しました";

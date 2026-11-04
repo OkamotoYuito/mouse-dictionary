@@ -7,6 +7,7 @@
 import { convertToBase64 } from "../main/lib/base64";
 import pdfCache from "./pdf-cache";
 import ExpiringQueue from "./queue";
+import { suggestMeaning } from "./suggestions";
 import generateUniqueId from "./unique";
 
 if (BROWSER === "chrome") {
@@ -143,15 +144,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         sendResponse({ error: "英単語を入力してください" });
         break;
       }
-      const url = new URL("https://api.excelapi.org/dictionary/enja");
-      url.searchParams.set("word", request.word);
-      fetch(url, { signal: AbortSignal.timeout(10000) })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return { meaning: (await response.text()).trim().slice(0, 5000) };
-        })
-        .then(sendResponse)
-        .catch(() => sendResponse({ error: "候補を取得できませんでした" }));
+      suggestMeaning(request.word).then(sendResponse);
       return true;
     }
     case "open_pdf": {
