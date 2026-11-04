@@ -32,14 +32,85 @@ export const extractEnglishSuggestions = (extract) => {
 
 export const extractEnglishMeanings = (extract) => extractEnglishSuggestions(extract).join("\n");
 
+const normalizeGloss = (gloss) =>
+  gloss
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, "")
+    .replace(/^to /, "")
+    .trim();
+
+// Jisho.org searches the English glosses of JMdict (about 200k entries), which covers many technical terms.
+export const extractJishoSuggestions = (data, word) => {
+  const target = word.toLowerCase();
+  const entries = data
+    .map((entry) => {
+      const glosses = entry.senses.flatMap((sense) => sense.english_definitions ?? []);
+      const exact = glosses.some((gloss) => normalizeGloss(gloss) === target);
+      const partial = glosses.some((gloss) => new RegExp(`\\b${target}\\b`, "i").test(gloss));
+      const { word: written, reading } = entry.japanese?.[0] ?? {};
+      const head = written ? (reading ? `${written}（${reading}）` : written) : reading;
+      return { exact, partial, head, glosses };
+    })
+    .filter((entry) => entry.head && (entry.exact || entry.partial));
+  const exact = entries.filter((entry) => entry.exact);
+  return (exact.length ? exact.slice(0, 6) : entries.slice(0, 3)).map(
+    (entry) => `${entry.head}${entry.exact ? "" : ` 〔${entry.glosses.slice(0, 3).join("; ")}〕`}`,
+  );
+};
+
+// English Wiktionary has Japanese translation tables for many words not found in the Japanese edition.
+export const extractWiktionaryTranslations = (wikitext) => {
+  const meanings = [];
+  for (const block of wikitext.split("{{trans-top").slice(1)) {
+    const gloss = block.slice(0, block.indexOf("}}")).replace(/^\|/, "").replace(/\|.*$/, "").trim();
+    const section = block.split("{{trans-bottom")[0];
+    const terms = [...section.matchAll(/\{\{tt?\+?\|ja\|([^|}]+)(?:\|[^}]*)?\}\}/g)].map((match) => match[1].trim());
+    const unique = [...new Set(terms)];
+    if (unique.length) meanings.push(`${gloss ? `【${gloss.slice(0, 40)}】` : ""}${unique.join("、")}`);
+  }
+  return meanings.slice(0, 8);
+};
+
+const fetchJson = async (url, options = {}) => {
+  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+};
+
 export const suggestMeaning = async (word) => {
-  const [excelResult, wiktionaryResult] = await Promise.allSettled([
+  const [excelResult, jishoResult, enWiktionaryResult, wiktionaryResult] = await Promise.allSettled([
     (async () => {
       const url = new URL("https://api.excelapi.org/dictionary/enja");
       url.searchParams.set("word", word);
       const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return (await response.text()).trim().slice(0, 5000);
+    })(),
+    (async () => {
+      const url = new URL("https://jisho.org/api/v1/search/words");
+      url.searchParams.set("keyword", `"${word}"`);
+      const result = await fetchJson(url);
+      const meaning = extractJishoSuggestions(result.data ?? [], word).join(" / ");
+      return meaning
+        ? [{ meaning, source: "JMdict (Jisho.org)", sourceUrl: `https://jisho.org/search/${encodeURIComponent(word)}` }]
+        : [];
+    })(),
+    (async () => {
+      const url = new URL("https://en.wiktionary.org/w/api.php");
+      url.search = new URLSearchParams({
+        action: "parse",
+        page: word.toLowerCase(),
+        prop: "wikitext",
+        redirects: "1",
+        format: "json",
+        formatversion: "2",
+      });
+      const result = await fetchJson(url, { headers: { "Api-User-Agent": "MouseDictionary/1.0" } });
+      return extractWiktionaryTranslations(result.parse?.wikitext ?? "").map((meaning) => ({
+        meaning,
+        source: "Wiktionary英語版",
+        sourceUrl: `https://en.wiktionary.org/wiki/${encodeURIComponent(word.toLowerCase())}#Translations`,
+      }));
     })(),
     (async () => {
       const response = await fetch(dictionaryUrl(word), { signal: AbortSignal.timeout(10000) });
@@ -56,10 +127,14 @@ export const suggestMeaning = async (word) => {
   const suggestions = [];
   if (excelResult.status === "fulfilled" && excelResult.value)
     suggestions.push({ meaning: excelResult.value, source: "ExcelAPI" });
-  if (wiktionaryResult.status === "fulfilled") suggestions.push(...wiktionaryResult.value);
-  const unique = [...new Map(suggestions.map((item) => [item.meaning, item])).values()].slice(0, 8);
+  for (const result of [jishoResult, enWiktionaryResult, wiktionaryResult]) {
+    if (result.status === "fulfilled") suggestions.push(...result.value);
+  }
+  const unique = [...new Map(suggestions.map((item) => [item.meaning, item])).values()].slice(0, 10);
   if (!unique.length) {
-    return excelResult.status === "rejected" && wiktionaryResult.status === "rejected"
+    return [excelResult, jishoResult, enWiktionaryResult, wiktionaryResult].every(
+      (result) => result.status === "rejected",
+    )
       ? { error: "辞書に接続できませんでした" }
       : { meaning: "" };
   }

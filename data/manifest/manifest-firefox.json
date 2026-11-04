@@ -9,7 +9,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "https://api.excelapi.org/*", "https://ja.wiktionary.org/*"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "https://api.excelapi.org/*", "https://ja.wiktionary.org/*", "https://en.wiktionary.org/*", "https://jisho.org/*"],
   "background": {
     "scripts": ["background.js"]
   },
