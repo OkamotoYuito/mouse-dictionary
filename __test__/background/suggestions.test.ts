@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import {
   extractEnglishMeanings,
   extractJishoSuggestions,
+  extractLsdMeanings,
   extractWikipediaTitle,
   extractWiktionaryTranslations,
   suggestMeaning,
@@ -99,4 +100,21 @@ test("uses the Japanese Wikipedia title linked from the English article", () => 
   expect(extractWikipediaTitle(query, "bolometer")).toBe("ボロメータ");
   expect(extractWikipediaTitle(query, "bolometric")).toBe("ボロメータ 〔Bolometer〕");
   expect(extractWikipediaTitle({ pages: [{ title: "Accretion" }] }, "accretion")).toBe("");
+});
+
+test("extracts meanings of the exact headword from the Life Science Dictionary page", () => {
+  const html = `<div class="caption">
+<span class="headword">culture</span>
+</div>
+<div class="meaning">
+<span class="headword"><a href="#">培養</a></span>, 
+<span class="explanation">(教養)</span>
+<span class="headword"><a href="#">文化</a></span>, 
+<span class="headword"><a href="#">培養</a></span>
+<span class="inflection">する</span>
+</div>
+<div class="caption"><span class="headword">culture medium</span></div>
+<div class="meaning"><span class="headword"><a href="#">培地</a></span></div>`;
+  expect(extractLsdMeanings(html, "Culture")).toEqual(["培養、(教養)文化、培養する"]);
+  expect(extractLsdMeanings("<html></html>", "culture")).toEqual([]);
 });

@@ -85,6 +85,29 @@ export const extractWikipediaTitle = (query, word) => {
   return page.title.toLowerCase() === word.toLowerCase() ? title : `${title} 〔${page.title}〕`;
 };
 
+const decodeEntities = (text) =>
+  text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&");
+
+// Life Science Dictionary (about 120k English headwords) only offers an HTML search page.
+export const extractLsdMeanings = (html, word) =>
+  html
+    .split('<div class="caption">')
+    .slice(1)
+    .filter((block) => block.match(/<span class="headword">([^<]*)<\/span>/)?.[1].toLowerCase() === word.toLowerCase())
+    .map((block) => block.match(/<div class="meaning">([\s\S]*?)<\/div>/)?.[1] ?? "")
+    .map((meaning) =>
+      decodeEntities(meaning.replace(/>\s+</g, "><").replace(/<[^>]*>/g, ""))
+        .replace(/\s*,\s*/g, "、")
+        .trim(),
+    )
+    .filter(Boolean)
+    .slice(0, 4);
+
 const cache = new Map();
 
 export const suggestMeaning = async (word) => {
@@ -150,6 +173,19 @@ const lookup = async (word) => {
       return meaning
         ? [{ meaning, source: "Wikipedia", sourceUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(page)}` }]
         : [];
+    })(),
+    (async () => {
+      const response = await fetch("https://lsd-project.jp/bin/ejdic.pl?opt=c", {
+        method: "POST",
+        body: new URLSearchParams({ query: word, mode: "exactly match", max: "100", inflect: "Ignore", romaji: "no" }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return extractLsdMeanings(await response.text(), word).map((meaning) => ({
+        meaning,
+        source: "ライフサイエンス辞書",
+        sourceUrl: "https://lsd-project.jp/",
+      }));
     })(),
     (async () => {
       const response = await fetch(dictionaryUrl(word), { signal: AbortSignal.timeout(10000) });
