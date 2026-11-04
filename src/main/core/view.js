@@ -9,6 +9,41 @@ import storage from "../lib/storage";
 import template from "../lib/template";
 import utils from "../lib/utils";
 
+const TEX_EXPRESSION =
+  /\\begin\{([A-Za-z*]+)\}[\s\S]*?\\end\{\1\}|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|(?<!\\)\$(?!\$)(?:\\.|[^$])*?(?<!\\)\$(?!\$)|\\[A-Za-z]+\*?(?:\{[^{}\n]*\})*/g;
+
+const translatePreservingTex = async (translator, text) => {
+  const matches = [...text.matchAll(TEX_EXPRESSION)];
+  if (!matches.length) return translator.translate(text);
+
+  const protectedExpressions = [];
+  const pattern = new RegExp(TEX_EXPRESSION.source, TEX_EXPRESSION.flags);
+  const masked = text.replace(pattern, (expression) => {
+    const marker = `MDTEXTOKEN${protectedExpressions.length}END`;
+    protectedExpressions.push({ expression, marker });
+    return marker;
+  });
+  const translated = await translator.translate(masked);
+  if (protectedExpressions.every(({ marker }) => translated.includes(marker))) {
+    return protectedExpressions.reduce(
+      (result, { expression, marker }) => result.split(marker).join(expression),
+      translated,
+    );
+  }
+
+  let result = "";
+  let offset = 0;
+  for (const match of matches) {
+    const prose = text.slice(offset, match.index);
+    if (prose) result += await translator.translate(prose);
+    result += match[0];
+    offset = match.index + match[0].length;
+  }
+  const remaining = text.slice(offset);
+  if (remaining) result += await translator.translate(remaining);
+  return result;
+};
+
 const createDialogElement = (settings) => {
   const html = template.render(settings.dialogTemplate, {
     backgroundColor: settings.backgroundColor,
@@ -51,9 +86,9 @@ const create = (settings) => {
       .md-editor [data-suggestion] { text-align: left; background: #f3f6ff; color: #304b9c; overflow-wrap: anywhere; line-height: 1.5; }
     </style>
     <button type="button" data-add><span aria-hidden="true">＋</span> 意味を追加</button>
-    <button type="button" data-translate>選択文を翻訳</button>
-    <section data-translation hidden aria-label="翻訳結果">
-      <div class="md-actions"><span data-translation-status role="status" aria-live="polite"></span><button type="button" data-close-translation>閉じる</button></div>
+    <button type="button" data-translate aria-controls="mouse-dictionary-translation" aria-expanded="false">翻訳を表示</button>
+    <section id="mouse-dictionary-translation" data-translation hidden aria-label="翻訳結果">
+      <span data-translation-status role="status" aria-live="polite">文章を選択すると自動翻訳します</span>
       <div data-translation-result></div>
     </section>
     <div data-fields hidden>
@@ -79,9 +114,16 @@ const create = (settings) => {
   let translationRequestId = 0;
   let translatorPromise = null;
   const translatorOptions = { sourceLanguage: "en", targetLanguage: "ja" };
-  const translatorAvailability = "Translator" in globalThis
-    ? globalThis.Translator.availability(translatorOptions).catch(() => null)
-    : Promise.resolve(null);
+  const translatorAvailability =
+    "Translator" in globalThis
+      ? globalThis.Translator.availability(translatorOptions).catch(() => null)
+      : Promise.resolve(null);
+  const translateButton = form.querySelector("[data-translate]");
+  const setTranslationVisible = (visible) => {
+    translationPanel.hidden = !visible;
+    translateButton.textContent = visible ? "翻訳を隠す" : "翻訳を表示";
+    translateButton.setAttribute("aria-expanded", String(visible));
+  };
   const clearSuggestions = () => {
     firstSuggestion.hidden = true;
     firstSuggestion.textContent = "";
@@ -135,16 +177,9 @@ const create = (settings) => {
     });
   };
   form.querySelector("[data-suggest]").addEventListener("click", suggest);
-  const translateButton = form.querySelector("[data-translate]");
-  let selectedText = "";
-  translateButton.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    selectedText = window.getSelection()?.toString().trim() ?? "";
-  });
   const translateText = async (text) => {
     const request = ++translationRequestId;
-    translationPanel.hidden = false;
+    setTranslationVisible(true);
     translationResult.textContent = "";
     if (!text) {
       translationStatus.textContent = "翻訳する文章を選択してください";
@@ -173,7 +208,7 @@ const create = (settings) => {
       const translator = await translatorPromise;
       if (request !== translationRequestId) return;
       translationStatus.textContent = "翻訳しています…";
-      const translated = await translator.translate(text);
+      const translated = await translatePreservingTex(translator, text);
       if (request !== translationRequestId) return;
       translationResult.textContent = translated;
       translationStatus.textContent = "英語 → 日本語";
@@ -183,25 +218,22 @@ const create = (settings) => {
       if (error?.name === "NotSupportedError") {
         const availability = await translatorAvailability;
         if (request !== translationRequestId) return;
-        translationStatus.textContent = availability === "unavailable"
-          ? "このChromeでは英語→日本語の翻訳モデルを利用できません"
-          : `翻訳モデルを作成できませんでした（availability: ${availability ?? "不明"}）`;
+        translationStatus.textContent =
+          availability === "unavailable"
+            ? "このChromeでは英語→日本語の翻訳モデルを利用できません"
+            : `翻訳モデルを作成できませんでした（availability: ${availability ?? "不明"}）`;
       } else {
         translationStatus.textContent = `翻訳できませんでした（${error?.name ?? "エラー"}）`;
       }
     }
   };
   translateButton.addEventListener("click", () => {
-    translateText(selectedText || window.getSelection()?.toString().trim() || "");
+    setTranslationVisible(translationPanel.hidden);
   });
   dialog.addEventListener("mouse-dictionary-translate-selection", (event) => translateText(event.detail));
   dialog.addEventListener("mouse-dictionary-hide-translation", () => {
     translationRequestId++;
-    translationPanel.hidden = true;
-  });
-  form.querySelector("[data-close-translation]").addEventListener("click", () => {
-    translationRequestId++;
-    translationPanel.hidden = true;
+    setTranslationVisible(false);
   });
   let editingHead = null;
   let requestId = 0;
