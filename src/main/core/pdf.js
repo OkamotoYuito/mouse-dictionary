@@ -109,9 +109,15 @@ const fetchLocalPdf = async () => {
     // Fall back to the extension background for browsers that block file fetches here.
   }
 
-  const result = await sendMessage({ type: "fetch_local_pdf", url: location.href });
+  let result;
+  try {
+    result = await sendMessage({ type: "fetch_local_pdf", url: location.href });
+  } catch {
+    // The extension was reloaded after this page was opened, so the old content script can't reach it.
+    throw new Error(res("extensionReloaded"));
+  }
   if (!result?.payload) {
-    throw new Error(res("cannotFetchLocalPdf"));
+    throw new Error(res(result?.fileAccess === true ? "cannotReadLocalPdf" : "cannotFetchLocalPdf"));
   }
   return convertFromBase64(result.payload);
 };
@@ -124,7 +130,7 @@ const isPdf = (arrayBuffer) => {
 const sendMessage = async (message) => {
   return new Promise((done) => {
     chrome.runtime.sendMessage(message, (response) => {
-      done(response);
+      done(chrome.runtime.lastError ? undefined : response);
     });
   });
 };

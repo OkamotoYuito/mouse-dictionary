@@ -135,6 +135,16 @@ chrome.alarms?.onAlarm.addListener((alarm) => {
   }
 });
 
+// Tells whether a failed local PDF read is caused by the "Allow access to file URLs" switch.
+const isAllowedFileSchemeAccess = () =>
+  new Promise((resolve) => {
+    if (!chrome.extension?.isAllowedFileSchemeAccess) {
+      resolve(undefined);
+      return;
+    }
+    chrome.extension.isAllowedFileSchemeAccess(resolve);
+  });
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   switch (request?.type) {
     case "suggest_meaning": {
@@ -176,8 +186,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           }
           return { payload: convertToBase64(await response.arrayBuffer()) };
         })
-        .then(sendResponse)
-        .catch(() => sendResponse(null));
+        .catch(() => null)
+        .then(async (result) => result ?? { fileAccess: await isAllowedFileSchemeAccess() })
+        .then(sendResponse);
       return true;
     }
     case "list_pdf_cache":

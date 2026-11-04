@@ -17,6 +17,9 @@ const resources = {
     nonPdf: "PDFファイルではないようです。処理を中断しました。",
     cannotFetchLocalPdf:
       "⛔ローカルPDFを読み込めません。拡張機能の詳細で「ファイルのURLへのアクセスを許可」をオンにしてください。",
+    cannotReadLocalPdf:
+      "⛔ローカルPDFを読み込めませんでした。ファイルが移動・削除されていないか確認し、ページを再読み込みしてください。",
+    extensionReloaded: "⛔拡張機能が更新されました。このページを再読み込みしてください。",
   },
   en: {
     continueProcessingPdf:
@@ -26,6 +29,8 @@ const resources = {
     preparingPdf: "📘Preparing PDF viewer...",
     nonPdf: "This is not a PDF document.",
     cannotFetchLocalPdf: "⛔Couldn't read the local PDF. Enable 'Allow access to file URLs' in the extension details.",
+    cannotReadLocalPdf: "⛔Couldn't read the local PDF. Check that the file still exists and reload the page.",
+    extensionReloaded: "⛔The extension was updated. Please reload this page.",
   },
 };
 
