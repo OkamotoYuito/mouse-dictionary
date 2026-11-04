@@ -70,8 +70,10 @@ export default {
             top: 5px;
             background-color: {{backgroundColor}};
             z-index: 2147483646;
-            padding: 2px 4px 2px 4px;
-            border: 1px solid #A0A0A0;
+            padding: 0;
+            border: 1px solid #dce2eb;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(24, 39, 75, 0.18);
             font-weight: normal;">
 </div>`,
 
