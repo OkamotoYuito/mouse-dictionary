@@ -78,6 +78,10 @@ const create = (settings) => {
   const translationResult = form.querySelector("[data-translation-result]");
   let translationRequestId = 0;
   let translatorPromise = null;
+  const translatorOptions = { sourceLanguage: "en", targetLanguage: "ja" };
+  const translatorAvailability = "Translator" in globalThis
+    ? globalThis.Translator.availability(translatorOptions).catch(() => null)
+    : Promise.resolve(null);
   const clearSuggestions = () => {
     firstSuggestion.hidden = true;
     firstSuggestion.textContent = "";
@@ -153,8 +157,7 @@ const create = (settings) => {
     translationStatus.textContent = "翻訳モデルを準備しています…";
     if (!translatorPromise) {
       translatorPromise = globalThis.Translator.create({
-        sourceLanguage: "en",
-        targetLanguage: "ja",
+        ...translatorOptions,
         monitor(monitor) {
           monitor.addEventListener("downloadprogress", (event) => {
             if (!translationPanel.hidden)
@@ -176,8 +179,16 @@ const create = (settings) => {
       translationStatus.textContent = "英語 → 日本語";
     } catch (error) {
       console.error(error);
-      if (request === translationRequestId)
+      if (request !== translationRequestId) return;
+      if (error?.name === "NotSupportedError") {
+        const availability = await translatorAvailability;
+        if (request !== translationRequestId) return;
+        translationStatus.textContent = availability === "unavailable"
+          ? "このChromeでは英語→日本語の翻訳モデルを利用できません"
+          : `翻訳モデルを作成できませんでした（availability: ${availability ?? "不明"}）`;
+      } else {
         translationStatus.textContent = `翻訳できませんでした（${error?.name ?? "エラー"}）`;
+      }
     }
   };
   translateButton.addEventListener("click", () => {
