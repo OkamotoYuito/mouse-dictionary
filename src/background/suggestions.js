@@ -77,8 +77,29 @@ const fetchJson = async (url, options = {}) => {
   return response.json();
 };
 
+// Wikipedia's interlanguage links give the Japanese article title, which covers many technical and proper nouns.
+export const extractWikipediaTitle = (query, word) => {
+  const page = query?.pages?.[0];
+  const title = page?.langlinks?.find((link) => link.lang === "ja")?.title;
+  if (!title) return "";
+  return page.title.toLowerCase() === word.toLowerCase() ? title : `${title} 〔${page.title}〕`;
+};
+
+const cache = new Map();
+
 export const suggestMeaning = async (word) => {
-  const [excelResult, jishoResult, enWiktionaryResult, wiktionaryResult] = await Promise.allSettled([
+  const key = word.toLowerCase();
+  if (cache.has(key)) return cache.get(key);
+  const result = await lookup(word);
+  if (!result.error) {
+    cache.set(key, result);
+    if (cache.size > 200) cache.delete(cache.keys().next().value);
+  }
+  return result;
+};
+
+const lookup = async (word) => {
+  const results = await Promise.allSettled([
     (async () => {
       const url = new URL("https://api.excelapi.org/dictionary/enja");
       url.searchParams.set("word", word);
@@ -113,6 +134,24 @@ export const suggestMeaning = async (word) => {
       }));
     })(),
     (async () => {
+      const url = new URL("https://en.wikipedia.org/w/api.php");
+      url.search = new URLSearchParams({
+        action: "query",
+        titles: word,
+        prop: "langlinks",
+        lllang: "ja",
+        redirects: "1",
+        format: "json",
+        formatversion: "2",
+      });
+      const result = await fetchJson(url, { headers: { "Api-User-Agent": "MouseDictionary/1.0" } });
+      const meaning = extractWikipediaTitle(result.query, word);
+      const page = result.query?.pages?.[0]?.title ?? word;
+      return meaning
+        ? [{ meaning, source: "Wikipedia", sourceUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(page)}` }]
+        : [];
+    })(),
+    (async () => {
       const response = await fetch(dictionaryUrl(word), { signal: AbortSignal.timeout(10000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
@@ -124,17 +163,16 @@ export const suggestMeaning = async (word) => {
       }));
     })(),
   ]);
+  const [excelResult, ...otherResults] = results;
   const suggestions = [];
   if (excelResult.status === "fulfilled" && excelResult.value)
     suggestions.push({ meaning: excelResult.value, source: "ExcelAPI" });
-  for (const result of [jishoResult, enWiktionaryResult, wiktionaryResult]) {
+  for (const result of otherResults) {
     if (result.status === "fulfilled") suggestions.push(...result.value);
   }
   const unique = [...new Map(suggestions.map((item) => [item.meaning, item])).values()].slice(0, 10);
   if (!unique.length) {
-    return [excelResult, jishoResult, enWiktionaryResult, wiktionaryResult].every(
-      (result) => result.status === "rejected",
-    )
+    return results.every((result) => result.status === "rejected")
       ? { error: "辞書に接続できませんでした" }
       : { meaning: "" };
   }

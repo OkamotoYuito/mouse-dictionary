@@ -111,6 +111,7 @@ const create = (settings) => {
   const firstSuggestion = form.querySelector("[data-suggestion]");
   const suggestionStatus = form.querySelector("[data-suggest-status]");
   let suggestionRequestId = 0;
+  let suggestionTimer = null;
   let pendingSources = [];
   const translationPanel = form.querySelector("[data-translation]");
   const translationStatus = form.querySelector("[data-translation-status]");
@@ -150,6 +151,7 @@ const create = (settings) => {
     };
   };
   const suggest = () => {
+    clearTimeout(suggestionTimer);
     const head = word.value.trim();
     const request = ++suggestionRequestId;
     clearSuggestions();
@@ -277,7 +279,9 @@ const create = (settings) => {
   word.addEventListener("input", () => {
     suggestionRequestId++;
     clearSuggestions();
-    suggestionStatus.textContent = "単語を変更した場合は候補を再取得できます";
+    clearTimeout(suggestionTimer);
+    suggestionStatus.textContent = "";
+    if (word.value.trim()) suggestionTimer = setTimeout(suggest, 500);
     requestId++;
     editingHead = null;
     status.textContent = "単語を変更しました。既存の意味を編集する場合は読み込んでください";
@@ -287,6 +291,7 @@ const create = (settings) => {
   });
   form.querySelector("[data-cancel]").addEventListener("click", () => {
     suggestionRequestId++;
+    clearTimeout(suggestionTimer);
     clearSuggestions();
     suggestionStatus.textContent = "";
     fields.hidden = true;
@@ -317,6 +322,7 @@ const create = (settings) => {
       meaning.value = "";
       fields.hidden = true;
       suggestionRequestId++;
+      clearTimeout(suggestionTimer);
       clearSuggestions();
       status.textContent = "";
       dialog.dispatchEvent(new CustomEvent("mouse-dictionary-entry-saved", { detail: head }));

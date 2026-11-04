@@ -102,6 +102,31 @@ test("shows a suggestion without overwriting a draft, and ignores stale results"
   vi.restoreAllMocks();
 });
 
+test("searches suggestions again while the word is edited", () => {
+  vi.useFakeTimers();
+  const sendMessage = vi.fn((_message, callback) => callback({ meaning: "星" }));
+  vi.stubGlobal("chrome", { runtime: { sendMessage } });
+  vi.spyOn(storage.local, "pick").mockResolvedValue(undefined);
+  const area = view.create({ ...settings, normalDialogStyles: {} });
+  document.body.append(area.dialog);
+  area.dialog.dispatchEvent(new CustomEvent("mouse-dictionary-add-meaning", { detail: "" }));
+  const word = area.dialog.querySelector<HTMLInputElement>('[name="word"]');
+  if (!word) throw new Error("Missing inputs");
+  for (const value of ["s", "st", "star"]) {
+    word.value = value;
+    word.dispatchEvent(new Event("input", { bubbles: true }));
+    vi.advanceTimersByTime(200);
+  }
+  expect(sendMessage).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(300);
+  expect(sendMessage).toHaveBeenCalledTimes(1);
+  expect(sendMessage.mock.calls[0][0]).toEqual({ type: "suggest_meaning", word: "star" });
+  expect(area.dialog.querySelector("[data-suggestion]")?.textContent).toBe("星");
+  area.dialog.remove();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
 test("inserts only the suggested meaning and saves its source separately", async () => {
   vi.stubGlobal("chrome", {
     runtime: {

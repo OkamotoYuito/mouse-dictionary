@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import {
   extractEnglishMeanings,
   extractJishoSuggestions,
+  extractWikipediaTitle,
   extractWiktionaryTranslations,
   suggestMeaning,
 } from "../../src/background/suggestions";
@@ -87,6 +88,15 @@ test("extracts Japanese translations per sense from English Wiktionary", () => {
 test("preserves the first dictionary result and reports errors when no source is available", async () => {
   mockFetch({ "api.excelapi.org": "雲", "jisho.org": { data: [] }, "en.wiktionary.org": {} });
   expect(await suggestMeaning("cloud")).toEqual({ meaning: "雲", source: "ExcelAPI" });
-  mockFetch({});
-  expect(await suggestMeaning("cloud")).toHaveProperty("error");
+  const offline = mockFetch({});
+  expect(await suggestMeaning("Cloud")).toEqual({ meaning: "雲", source: "ExcelAPI" });
+  expect(offline).not.toHaveBeenCalled();
+  expect(await suggestMeaning("sky")).toHaveProperty("error");
+});
+
+test("uses the Japanese Wikipedia title linked from the English article", () => {
+  const query = { pages: [{ title: "Bolometer", langlinks: [{ lang: "ja", title: "ボロメータ" }] }] };
+  expect(extractWikipediaTitle(query, "bolometer")).toBe("ボロメータ");
+  expect(extractWikipediaTitle(query, "bolometric")).toBe("ボロメータ 〔Bolometer〕");
+  expect(extractWikipediaTitle({ pages: [{ title: "Accretion" }] }, "accretion")).toBe("");
 });
