@@ -7,6 +7,10 @@ test("joins PDF line breaks, hyphenation and ligatures before translation", () =
   );
 });
 
+test("reads solar masses written with a PDF subscript", () => {
+  expect(prepareText("clusters with M_∗ ≳ 10^3 M_⊙ there")).toBe("clusters with M_∗ ≳ 10^3 solar masses there");
+});
+
 test("protects TeX in Azure HTML and restores it after translation", () => {
   const { html, expressions } = toTranslatorHtml("Flux $F < 1$ & more\nline");
   expect(html).toBe('Flux <span class="notranslate">$F &lt; 1$</span> &amp; more<br>line');

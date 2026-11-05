@@ -16503,6 +16503,21 @@ function mapSpecialUnicodeValues(code) {
   }
   return code;
 }
+// Mouse Dictionary: glyph names used by TeX math fonts (AMS, MathTime) that are missing from the
+// Adobe glyph list. Without them these symbols come out as control characters in the text layer.
+const TEX_MATH_GLYPHS = {
+  circledot: 0x2299,
+  greaterorsimilar: 0x2273,
+  lessorsimilar: 0x2272,
+  greaterorapproxeql: 0x2a86,
+  lessorapproxeql: 0x2a85,
+  greaterorequalslant: 0x2a7e,
+  lessorequalslant: 0x2a7d,
+  greaterorequalfilled: 0x2267,
+  lessorequalfilled: 0x2266,
+  similarequal: 0x2243,
+  Sigma1: 0x03a3,
+};
 function getUnicodeForGlyph(name, glyphsUnicodeMap) {
   let unicode = glyphsUnicodeMap[name];
   if (unicode !== undefined) {
@@ -33606,7 +33621,7 @@ class PartialEvaluator {
       if (glyphName === "") {
         continue;
       }
-      let unicode = glyphsUnicodeMap[glyphName];
+      let unicode = glyphsUnicodeMap[glyphName] ?? TEX_MATH_GLYPHS[glyphName];
       if (unicode !== undefined) {
         toUnicode[charcode] = String.fromCharCode(unicode);
         continue;

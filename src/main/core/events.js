@@ -12,6 +12,7 @@ import utils from "../lib/utils";
 import config from "./config";
 import entryDefault from "./entry/default";
 import Lookuper from "./lookuper";
+import { readPdfSelection } from "./pdf-selection";
 import rule from "./rule";
 
 const POSITION_FIELDS = ["left", "top", "width", "height"];
@@ -57,7 +58,11 @@ const attach = async (settings, dialog, doUpdateContent) => {
       const isVisible = dialog.getAttribute("data-mouse-dictionary-hidden") !== "true";
       const isSentence = (selectedText.match(/[a-zA-Z]{2,}/g) ?? []).length >= 2;
       if (isVisible && isSentence) {
-        dialog.dispatchEvent(new CustomEvent("mouse-dictionary-translate-selection", { detail: selectedText }));
+        dialog.dispatchEvent(
+          new CustomEvent("mouse-dictionary-translate-selection", {
+            detail: readPdfSelection()?.trim() || selectedText,
+          }),
+        );
       } else {
         dialog.dispatchEvent(new CustomEvent("mouse-dictionary-hide-translation"));
       }

@@ -10,7 +10,10 @@ export const TEX_EXPRESSION =
 const LIGATURES = { ﬀ: "ff", ﬁ: "fi", ﬂ: "fl", ﬃ: "ffi", ﬄ: "ffl", ﬅ: "st", ﬆ: "st" };
 
 const normalizeSolarMasses = (text) =>
-  text.replace(/\$?(\d+(?:[.,]\d+)?)\s*M(?:[_^]?\s*\\odot|[☉⊙\uFFFD\u0099])\$?/g, (_, mass) => `${mass} solar masses`);
+  text.replace(
+    /\$?(\d+(?:[.,]\d+)?)\s*M(?:[_^]?\s*\\odot|_?\{?[☉⊙\uFFFD\u0099]\}?)\$?/g,
+    (_, mass) => `${mass} solar masses`,
+  );
 
 // Text selected in PDFs keeps the layout's line breaks, hyphenation and ligatures, which breaks sentences apart.
 export const prepareText = (text) =>
