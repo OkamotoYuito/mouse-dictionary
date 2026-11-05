@@ -9,6 +9,7 @@ const MAX_TERMS = 40;
 const MAX_TARGET_LENGTH = 40;
 
 // The first sense of a dictionary or user-written meaning, e.g. "『避けがたい』,免れられない" -> "避けがたい".
+// Usage marks such as "…‘を'" (in "…‘を'四方に散らす") are dropped; PLaMo would copy them into the translation.
 export const firstSense = (meaning) =>
   (meaning ?? "")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -21,7 +22,8 @@ export const firstSense = (meaning) =>
     .split(/\r?\n|\\n| \/ /)[0]
     .split(/[,;、；]/)[0]
     .replace(/〈[^〉]*〉|《[^》]*》|\{[^}]*\}|[『』]/g, "")
-    .replace(/^\s*[(（][^)）]*[)）]/, "")
+    .replace(/‘[^'’]{0,6}['’]|…/g, "")
+    .replace(/[(（][^)）]*[)）]/g, "")
     .trim();
 
 const usable = (term) => term.source.trim() && term.target && term.target.length <= MAX_TARGET_LENGTH;

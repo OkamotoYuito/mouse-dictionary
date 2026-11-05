@@ -27,6 +27,9 @@ test("takes the first sense of a dictionary or user-written meaning", () => {
   expect(firstSense("〈U〉(大きさ・数などが)等しくないこと / 不平等")).toBe("等しくないこと");
   expect(firstSense("ビリアル比<br>2番目の意味")).toBe("ビリアル比");
   expect(firstSense("A &amp; B、C")).toBe("A & B");
+  expect(firstSense("…‘を'四方に散らす,追い散らす")).toBe("四方に散らす");
+  expect(firstSense("〈線・図形〉‘を'『描く』")).toBe("描く");
+  expect(firstSense("(…まで)…‘の'由来をさかのぼる")).toBe("由来をさかのぼる");
   expect(firstSense(undefined)).toBe("");
 });
 
