@@ -54,7 +54,8 @@ const attach = async (settings, dialog, doUpdateContent) => {
     lookuper.suspended = false;
 
     const selectedText = window.getSelection()?.toString().trim() ?? "";
-    if (!e.composedPath().includes(dialog)) {
+    // The PDF viewer's translation tab translates selections itself.
+    if (!e.composedPath().includes(dialog) && !utils.isPdfViewer()) {
       const isVisible = dialog.getAttribute("data-mouse-dictionary-hidden") !== "true";
       const isSentence = (selectedText.match(/[a-zA-Z]{2,}/g) ?? []).length >= 2;
       if (isVisible && isSentence) {

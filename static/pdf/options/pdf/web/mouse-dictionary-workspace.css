@@ -26,7 +26,7 @@
   --md-field-bg: #fff;
   --md-card-bg: #fff;
   --md-page-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 2px 6px rgb(0 0 0 / 0.08), 0 12px 32px rgb(0 0 0 / 0.07);
-  --md-notes-width: 300px;
+  --md-side-width: 360px;
   --md-font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
 
   --body-bg-color: var(--md-desk-bg);
@@ -222,11 +222,18 @@ body {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 1.5h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1zM3 3v10h6.5V3zm8 0v10h2V3z'/%3E%3C/svg%3E");
 }
 
+#mdTranslateButton::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 2.5h7v1.4H6.6c-.3 1.7-1 3.1-2 4.2.7.5 1.5.9 2.4 1.2l-.5 1.3c-1.1-.4-2-.9-2.8-1.5-.8.6-1.8 1.1-2.9 1.5l-.5-1.3c.9-.3 1.7-.7 2.4-1.2-.6-.7-1.1-1.5-1.4-2.4l1.3-.4c.3.7.6 1.3 1.1 1.8.7-.9 1.2-2 1.4-3.2H1.5zM4.3.8h1.4v1.4H4.3zM11 6h1.6l3.1 8.5h-1.5l-.8-2.2H10l-.8 2.2H7.8zm-.5 5h2.9l-1.45-4z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 2.5h7v1.4H6.6c-.3 1.7-1 3.1-2 4.2.7.5 1.5.9 2.4 1.2l-.5 1.3c-1.1-.4-2-.9-2.8-1.5-.8.6-1.8 1.1-2.9 1.5l-.5-1.3c.9-.3 1.7-.7 2.4-1.2-.6-.7-1.1-1.5-1.4-2.4l1.3-.4c.3.7.6 1.3 1.1 1.8.7-.9 1.2-2 1.4-3.2H1.5zM4.3.8h1.4v1.4H4.3zM11 6h1.6l3.1 8.5h-1.5l-.8-2.2H10l-.8 2.2H7.8zm-.5 5h2.9l-1.45-4z'/%3E%3C/svg%3E");
+}
+
+#mdTranslateButton.toggled,
 #mdNotesAddButton.toggled,
 #mdNotesPanelButton.toggled {
   background-color: rgb(10 132 255 / 0.16);
 }
 
+#mdTranslateButton.toggled::before,
 #mdNotesAddButton.toggled::before,
 #mdNotesPanelButton.toggled::before {
   background-color: var(--md-accent);
@@ -255,12 +262,12 @@ body {
 
 /* ---- Right panel: the notes of this PDF ---- */
 
-#mdNotesPanel {
+#mdSidePanel {
   position: absolute;
   top: var(--toolbar-height);
   bottom: 0;
   inset-inline-end: 0;
-  width: var(--md-notes-width);
+  width: var(--md-side-width);
   display: flex;
   flex-direction: column;
   background: var(--md-chrome-bg);
@@ -275,7 +282,7 @@ body {
   z-index: 1;
 }
 
-#outerContainer.mdNotesOpen #mdNotesPanel {
+#outerContainer.mdSideOpen #mdSidePanel {
   transform: none;
   visibility: visible;
   transition: transform 0.2s ease;
@@ -285,19 +292,208 @@ body {
   transition-property: inset-inline-start, inset-inline-end;
 }
 
-#outerContainer.mdNotesOpen #viewerContainer:not(.pdfPresentationMode) {
-  inset-inline-end: var(--md-notes-width);
+#outerContainer.mdSideOpen #viewerContainer:not(.pdfPresentationMode) {
+  inset-inline-end: var(--md-side-width);
 }
 
 /* Too narrow to read beside the panel: let it cover the pages instead. */
 @media all and (max-width: 720px) {
-  #outerContainer.mdNotesOpen #viewerContainer:not(.pdfPresentationMode) {
+  #outerContainer.mdSideOpen #viewerContainer:not(.pdfPresentationMode) {
     inset-inline-end: 0;
   }
-  #mdNotesPanel {
-    width: min(var(--md-notes-width), 85vw);
+  #mdSidePanel {
+    width: min(var(--md-side-width), 85vw);
     box-shadow: -8px 0 30px rgb(0 0 0 / 0.25);
   }
+}
+
+/* ---- Side panel tabs ---- */
+
+.mdTabs {
+  display: flex;
+  gap: 2px;
+  margin: 10px 12px 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--md-hover);
+}
+
+.mdTab {
+  flex: 1;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--md-muted);
+  font: 600 12px var(--md-font);
+  cursor: pointer;
+}
+
+.mdTab:hover {
+  color: var(--md-fg);
+}
+
+.mdTab[aria-selected="true"] {
+  background: var(--md-card-bg);
+  color: var(--md-fg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.mdTabPane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.mdTabPane[hidden] {
+  display: none;
+}
+
+/* ---- Translation tab ---- */
+
+.mdTrTab {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px 16px;
+}
+
+.mdTrCurrent {
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  background: var(--md-card-bg);
+  box-shadow: 0 0 0 1px var(--md-chrome-line);
+}
+
+.mdTrCurrent[hidden] {
+  display: none;
+}
+
+.mdTrStatus {
+  margin-bottom: 6px;
+  color: var(--md-muted);
+  font-size: 11px;
+}
+
+.mdTrCurrent.mdTrSimilar .mdTrStatus {
+  color: #b26a00;
+}
+
+.mdTrSource {
+  display: -webkit-box;
+  margin-bottom: 8px;
+  padding-left: 8px;
+  overflow: hidden;
+  border-left: 2px solid var(--md-chrome-line);
+  color: var(--md-muted);
+  font-size: 12px;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  cursor: pointer;
+}
+
+.mdTrSource.mdExpanded {
+  display: block;
+}
+
+.mdTrResult {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+
+.mdTrResult .md-math math {
+  font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", math;
+  font-size: 1.1em;
+}
+
+.mdTrActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.mdTrActions button,
+.mdTrHistoryHead button {
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--md-hover);
+  color: var(--md-fg);
+  font: 500 12px var(--md-font);
+  cursor: pointer;
+}
+
+.mdTrActions button:hover,
+.mdTrHistoryHead button:hover {
+  background: var(--md-active);
+}
+
+.mdTrActions button[hidden],
+.mdTrHistoryHead button[hidden] {
+  display: none;
+}
+
+.mdTrHistoryHead {
+  display: flex;
+  align-items: center;
+  margin: 18px 2px 6px;
+}
+
+.mdTrHistoryHead h3 {
+  flex: 1;
+  margin: 0;
+  color: var(--md-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mdTrItem {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--md-chrome-line);
+  color: var(--md-fg);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mdTrItem:hover {
+  background: var(--md-card-bg);
+}
+
+.mdTrItemSource {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--md-muted);
+  font-size: 11.5px;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mdTrItemText {
+  display: -webkit-box;
+  margin-top: 3px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.mdTrItemMeta {
+  margin-top: 3px;
+  color: var(--md-muted);
+  font-size: 10.5px;
+}
+
+.mdTrItemMeta:empty {
+  display: none;
 }
 
 .mdPanelHead {
@@ -691,7 +887,7 @@ body {
 
 @media print {
   .mdNoteLayer,
-  #mdNotesPanel {
+  #mdSidePanel {
     display: none !important;
   }
 }

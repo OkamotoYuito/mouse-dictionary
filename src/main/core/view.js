@@ -9,7 +9,7 @@ import storage from "../lib/storage";
 import template from "../lib/template";
 import utils from "../lib/utils";
 import { renderTextWithMath } from "./math";
-import { prepareText, translatePreservingTex } from "./translation";
+import { createTranslateEngine, engineLabel } from "./translate-engine";
 
 const createDialogElement = (settings) => {
   const html = template.render(settings.dialogTemplate, {
@@ -82,12 +82,7 @@ const create = (settings) => {
   const translationStatus = form.querySelector("[data-translation-status]");
   const translationResult = form.querySelector("[data-translation-result]");
   let translationRequestId = 0;
-  let translatorPromise = null;
-  const translatorOptions = { sourceLanguage: "en", targetLanguage: "ja" };
-  const translatorAvailability =
-    "Translator" in globalThis
-      ? globalThis.Translator.availability(translatorOptions).catch(() => null)
-      : Promise.resolve(null);
+  const translate = createTranslateEngine();
   const translateButton = form.querySelector("[data-translate]");
   const setTranslationVisible = (visible) => {
     translationPanel.hidden = !visible;
@@ -95,6 +90,11 @@ const create = (settings) => {
     translateButton.setAttribute("aria-expanded", String(visible));
   };
   setTranslationVisible(settings.showTranslationByDefault !== false);
+  // In Mouse Dictionary's PDF viewer, translations go to the viewer's own translation tab.
+  if (utils.isPdfViewer()) {
+    translateButton.remove();
+    translationPanel.remove();
+  }
   const clearSuggestions = () => {
     firstSuggestion.hidden = true;
     firstSuggestion.textContent = "";
@@ -157,65 +157,16 @@ const create = (settings) => {
       translationStatus.textContent = "翻訳する文章を選択してください";
       return;
     }
-    text = prepareText(text);
-    translationStatus.textContent = "翻訳しています…";
-    const remote = await new Promise((resolve) => {
-      try {
-        chrome.runtime.sendMessage({ type: "translate_text", text }, (response) => {
-          resolve(chrome.runtime.lastError ? null : response);
-        });
-      } catch {
-        resolve(null);
-      }
+    const result = await translate(text, (status) => {
+      if (request === translationRequestId && !translationPanel.hidden) translationStatus.textContent = status;
     });
     if (request !== translationRequestId) return;
-    if (remote?.translation) {
-      renderTextWithMath(translationResult, remote.translation);
-      translationStatus.textContent = `英語 → 日本語（${remote.engine ?? "Azure"}）`;
+    if (result.error) {
+      translationStatus.textContent = result.error;
       return;
     }
-    const fallbackNote = remote?.error ? `（${remote.error}。内蔵翻訳を使用）` : "";
-    if (!("Translator" in globalThis)) {
-      translationStatus.textContent = `このChromeではTranslator APIを利用できません${fallbackNote}`;
-      return;
-    }
-    translationStatus.textContent = "翻訳モデルを準備しています…";
-    if (!translatorPromise) {
-      translatorPromise = globalThis.Translator.create({
-        ...translatorOptions,
-        monitor(monitor) {
-          monitor.addEventListener("downloadprogress", (event) => {
-            if (!translationPanel.hidden)
-              translationStatus.textContent = `翻訳モデルをダウンロード中… ${Math.round(event.loaded * 100)}%`;
-          });
-        },
-      });
-      translatorPromise.catch(() => {
-        translatorPromise = null;
-      });
-    }
-    try {
-      const translator = await translatorPromise;
-      if (request !== translationRequestId) return;
-      translationStatus.textContent = "翻訳しています…";
-      const translated = await translatePreservingTex(translator, text);
-      if (request !== translationRequestId) return;
-      renderTextWithMath(translationResult, translated);
-      translationStatus.textContent = `英語 → 日本語${fallbackNote}`;
-    } catch (error) {
-      console.error(error);
-      if (request !== translationRequestId) return;
-      if (error?.name === "NotSupportedError") {
-        const availability = await translatorAvailability;
-        if (request !== translationRequestId) return;
-        translationStatus.textContent =
-          availability === "unavailable"
-            ? "このChromeでは英語→日本語の翻訳モデルを利用できません"
-            : `翻訳モデルを作成できませんでした（availability: ${availability ?? "不明"}）`;
-      } else {
-        translationStatus.textContent = `翻訳できませんでした（${error?.name ?? "エラー"}）`;
-      }
-    }
+    renderTextWithMath(translationResult, result.translation);
+    translationStatus.textContent = engineLabel(result);
   };
   translateButton.addEventListener("click", () => {
     setTranslationVisible(translationPanel.hidden);

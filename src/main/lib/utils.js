@@ -118,8 +118,10 @@ const getSelection = () => {
 // In Mouse Dictionary's PDF viewer, the top of the window is taken by PDF.js's toolbar, which the
 // dictionary window should not cover. Elsewhere nothing is.
 const PDF_VIEWER_PATH = "/options/pdf/web/viewer.html";
+const isPdfViewer = () => location.pathname.endsWith(PDF_VIEWER_PATH);
+
 const getTopInset = () => {
-  if (!location.pathname.endsWith(PDF_VIEWER_PATH)) return 0;
+  if (!isPdfViewer()) return 0;
   const toolbar = document.getElementById("toolbarContainer");
   return toolbar ? Math.ceil(toolbar.getBoundingClientRect().bottom) : 0;
 };
@@ -148,5 +150,6 @@ export default {
   optimizeInitialPosition,
   getSelection,
   getTopInset,
+  isPdfViewer,
   keepBelowInset,
 };

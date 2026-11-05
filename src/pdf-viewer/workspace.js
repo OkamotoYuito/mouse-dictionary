@@ -5,8 +5,8 @@
  */
 
 // Runs inside the bundled PDF.js viewer, next to vocabulary.js. Adds free scrolling (drag the
-// pages around while holding Space, or with the middle button) and sticky notes, with a panel on
-// the right listing the notes of the PDF. The look itself is in mouse-dictionary-workspace.css.
+// pages around while holding Space, or with the middle button), sticky notes, and a side panel on
+// the right with a translation tab and a notes tab. The look is in mouse-dictionary-workspace.css.
 
 import { readPdfSelection } from "../main/core/pdf-selection";
 import storage from "../main/lib/storage";
@@ -24,8 +24,11 @@ import {
   toMarkdown,
   updateNote,
 } from "./sticky-notes-model";
+import { createTranslationTab } from "./translation-tab";
 
-const PANEL_KEY = "pdfStickyNotesPanelOpen";
+const SIDE_KEY = "pdfSidePanel"; // { open, tab }
+const OLD_PANEL_KEY = "pdfStickyNotesPanelOpen";
+const TABS = { translation: "翻訳", notes: "付箋" };
 const SAVE_DELAY = 400;
 const DRAG_THRESHOLD = 3;
 const SCROLL_PAGE = 3; // PDF.js ScrollMode.PAGE
@@ -221,6 +224,11 @@ let panelTitle;
 let foldAll;
 let addButton;
 let panelButton;
+let translateButton;
+let translationTab;
+let activeTab = "translation";
+const tabButtons = {};
+const tabPanes = {};
 let countBadge;
 let toast;
 let saveTimer;
@@ -483,12 +491,12 @@ const renderAllNotes = () => {
   }
 };
 
-const addNote = (values) => {
-  const note = createNote(values);
+const addNote = (values, { focus = true } = {}) => {
+  const note = { ...createNote(values), text: values.text ?? "" };
   setNotes([...state.notes, note]);
   const element = renderNote(note);
   focusNote(note.id);
-  requestAnimationFrame(() => element.querySelector("textarea")?.focus({ preventScroll: true }));
+  if (focus) requestAnimationFrame(() => element.querySelector("textarea")?.focus({ preventScroll: true }));
 };
 
 const setPlacing = (placing) => {
@@ -498,27 +506,34 @@ const setPlacing = (placing) => {
   addButton.setAttribute("aria-pressed", String(placing));
 };
 
+// The selected text of a page and the place just right of it, where a note about it goes.
+const readSelection = () => {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || selection.isCollapsed) return null;
+  const rect = selection.getRangeAt(0).getBoundingClientRect();
+  const target = pageNumberAt(rect.right - 1, rect.top + 1) ?? pageNumberAt(rect.left + 1, rect.top + 1);
+  if (!target) return null;
+  const pageRect = target.div.getBoundingClientRect();
+  return {
+    selection,
+    text: (readPdfSelection(selection) ?? selection.toString()).replace(/\s+\n/g, "\n").trim(),
+    place: {
+      page: target.page,
+      x: (rect.right + 8 - pageRect.left) / pageRect.width,
+      y: (rect.top - pageRect.top) / pageRect.height,
+    },
+  };
+};
+
 // With text selected, the note goes right beside it and quotes it. Otherwise, the next click
 // on a page puts the note there.
 const onAddButton = () => {
-  const selection = window.getSelection();
-  if (selection?.rangeCount && !selection.isCollapsed) {
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    const target = pageNumberAt(rect.right - 1, rect.top + 1) ?? pageNumberAt(rect.left + 1, rect.top + 1);
-    if (target) {
-      const quote = (readPdfSelection(selection) ?? selection.toString()).replace(/\s+\n/g, "\n").trim();
-      const pageRect = target.div.getBoundingClientRect();
-      selection.removeAllRanges();
-      setPlacing(false);
-      addNote({
-        page: target.page,
-        x: (rect.right + 8 - pageRect.left) / pageRect.width,
-        y: (rect.top - pageRect.top) / pageRect.height,
-        quote,
-      });
-      return;
-    }
+  const selected = readSelection();
+  if (selected) {
+    selected.selection.removeAllRanges();
+    setPlacing(false);
+    addNote({ ...selected.place, quote: selected.text });
+    return;
   }
   setPlacing(!state.placing);
 };
@@ -546,17 +561,24 @@ const showToast = (message) => {
   setTimeout(() => toast.classList.remove("mdShown"), 1600);
 };
 
-const goToNote = (id) => {
-  const note = noteById(id);
-  const div = note && pageView(note.page)?.div;
-  if (!div) return;
-  if (note.collapsed) change(id, { collapsed: false });
+// Scrolls so that a place on a page comes a third of the way down the view.
+const goTo = ({ page, x, y }) => {
+  const div = pageView(page)?.div;
+  if (!div) return false;
   const pageRect = div.getBoundingClientRect();
   const viewRect = container.getBoundingClientRect();
   container.scrollTo({
-    top: container.scrollTop + pageRect.top - viewRect.top + note.y * pageRect.height - container.clientHeight * 0.3,
-    left: container.scrollLeft + pageRect.left - viewRect.left + note.x * pageRect.width - container.clientWidth * 0.4,
+    top: container.scrollTop + pageRect.top - viewRect.top + y * pageRect.height - container.clientHeight * 0.3,
+    left: container.scrollLeft + pageRect.left - viewRect.left + x * pageRect.width - container.clientWidth * 0.4,
   });
+  return true;
+};
+
+const goToNote = (id) => {
+  const note = noteById(id);
+  if (!note) return;
+  if (note.collapsed) change(id, { collapsed: false });
+  if (!goTo(note)) return;
   focusNote(id);
   const element = noteElements.get(id);
   if (element) {
@@ -580,7 +602,8 @@ const renderPanel = () => {
   panelTitle.textContent = state.notes.length ? `付箋 ${state.notes.length}` : "付箋";
   foldAll.hidden = state.notes.length === 0;
   foldAll.textContent = state.notes.some((note) => !note.collapsed) ? "すべて最小化" : "すべて開く";
-  if (!document.getElementById("outerContainer")?.classList.contains("mdNotesOpen")) return;
+  tabButtons.notes.textContent = state.notes.length ? `${TABS.notes} ${state.notes.length}` : TABS.notes;
+  if (!isPanelOpen() || activeTab !== "notes") return;
 
   const notes = sortNotes(filterNotes(state.notes, state.query));
   panelList.replaceChildren();
@@ -623,15 +646,30 @@ const renderPanel = () => {
   }
 };
 
-const setPanelOpen = (open, { remember = true } = {}) => {
-  document.getElementById("outerContainer")?.classList.toggle("mdNotesOpen", open);
-  panelButton.classList.toggle("toggled", open);
-  panelButton.setAttribute("aria-expanded", String(open));
-  if (remember) storage.local.set({ [PANEL_KEY]: open });
+const isPanelOpen = () => document.getElementById("outerContainer")?.classList.contains("mdSideOpen") ?? false;
+
+const setPanelOpen = (open, { tab = activeTab, remember = true } = {}) => {
+  const wasOpen = isPanelOpen();
+  activeTab = tab;
+  document.getElementById("outerContainer")?.classList.toggle("mdSideOpen", open);
+  for (const [name, tabButton] of Object.entries(tabButtons)) {
+    const selected = name === tab;
+    tabButton.setAttribute("aria-selected", String(selected));
+    tabButton.tabIndex = selected ? 0 : -1;
+    tabPanes[name].hidden = !selected;
+  }
+  translateButton.classList.toggle("toggled", open && tab === "translation");
+  panelButton.classList.toggle("toggled", open && tab === "notes");
+  translateButton.setAttribute("aria-expanded", String(open && tab === "translation"));
+  panelButton.setAttribute("aria-expanded", String(open && tab === "notes"));
+  if (remember) storage.local.set({ [SIDE_KEY]: { open, tab } });
   renderPanel();
   // Let "page width" and "auto" zoom follow the narrower viewing area.
-  setTimeout(() => app.eventBus.dispatch("resize", { source: window }), 220);
+  if (open !== wasOpen) setTimeout(() => app.eventBus.dispatch("resize", { source: window }), 220);
 };
+
+// A toolbar button opens its tab, or closes the panel when its tab is already showing.
+const toggleTab = (tab) => setPanelOpen(!(isPanelOpen() && activeTab === tab), { tab });
 
 const buildPanel = () => {
   panelTitle = create("h2", { textContent: "付箋" });
@@ -654,13 +692,36 @@ const buildPanel = () => {
   });
   panelList = create("div", { className: "mdPanelList" });
   toast = create("div", { className: "mdPanelToast", role: "status" });
-  panel = create("aside", { id: "mdNotesPanel" }, [
+
+  translationTab = createTranslationTab({
+    onMakeNote: ({ quote, text, place }) => addNote({ ...place, quote, text }, { focus: false }),
+    goTo,
+    showToast,
+  });
+  tabPanes.translation = create("div", { className: "mdTabPane" }, [translationTab.element]);
+  tabPanes.notes = create("div", { className: "mdTabPane" }, [
     create("div", { className: "mdPanelHead" }, [panelTitle, foldAll, copy]),
     search,
     panelList,
-    toast,
   ]);
-  panel.setAttribute("aria-label", "付箋");
+
+  const tabBar = create("div", { className: "mdTabs", role: "tablist" });
+  for (const [name, label] of Object.entries(TABS)) {
+    const tabButton = create("button", { type: "button", className: "mdTab", role: "tab", textContent: label });
+    tabButton.addEventListener("click", () => setPanelOpen(true, { tab: name }));
+    tabButton.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const names = Object.keys(TABS);
+      const next = names[(names.indexOf(name) + (event.key === "ArrowRight" ? 1 : names.length - 1)) % names.length];
+      setPanelOpen(true, { tab: next });
+      tabButtons[next].focus();
+    });
+    tabButtons[name] = tabButton;
+    tabBar.append(tabButton);
+  }
+
+  panel = create("aside", { id: "mdSidePanel" }, [tabBar, tabPanes.translation, tabPanes.notes, toast]);
+  panel.setAttribute("aria-label", "翻訳と付箋");
   document.getElementById("mainContainer")?.append(panel);
 };
 
@@ -678,12 +739,30 @@ const buildToolbar = () => {
   panelButton = toolbarButton("mdNotesPanelButton", "付箋の一覧");
   countBadge = create("span", { id: "mdNotesCount" });
   panelButton.append(countBadge);
-  panelButton.addEventListener("click", () =>
-    setPanelOpen(!document.getElementById("outerContainer")?.classList.contains("mdNotesOpen")),
-  );
+  panelButton.addEventListener("click", () => toggleTab("notes"));
+
+  translateButton = toolbarButton("mdTranslateButton", "翻訳（本文の英文を選ぶと翻訳します）");
+  translateButton.addEventListener("mousedown", (event) => event.preventDefault()); // keep the text selection
+  translateButton.addEventListener("click", () => {
+    toggleTab("translation");
+    // Opened with a sentence selected: translate it right away.
+    if (isPanelOpen() && activeTab === "translation") translateSelectedText();
+  });
 
   const right = document.getElementById("toolbarViewerRight");
-  right?.prepend(addButton, panelButton, create("div", { className: "mdToolbarDivider" }));
+  right?.prepend(translateButton, addButton, panelButton, create("div", { className: "mdToolbarDivider" }));
+};
+
+// ---- Translation ----
+
+const isSentence = (text) => (text.match(/[a-zA-Z]{2,}/g) ?? []).length >= 2;
+
+// Selecting a sentence in the pages translates it while the translation tab is showing.
+const translateSelectedText = () => {
+  const selected = readSelection();
+  if (!selected || !isSentence(selected.text)) return;
+  if (!selected.selection.anchorNode?.parentElement?.closest(".textLayer")) return;
+  translationTab.translateSelection(selected.text, selected.place);
 };
 
 // ---- Document ----
@@ -700,6 +779,7 @@ const loadDocument = async () => {
   layers.clear();
   setNotes(documentNotes.notes, { persist: false });
   renderAllNotes();
+  await translationTab.load(fingerprint);
 
   // PDF.js's single-page mode can't be scrolled through freely, so open such documents continuously.
   if (app.pdfViewer.scrollMode === SCROLL_PAGE) app.pdfViewer.scrollMode = SCROLL_VERTICAL;
@@ -731,6 +811,11 @@ const start = async () => {
     true,
   );
   window.addEventListener("pagehide", () => saveTimer && save());
+  container.addEventListener("mouseup", (event) => {
+    if (event.button !== 0 || state.placing || !isPanelOpen() || activeTab !== "translation") return;
+    // Wait for the selection to settle.
+    setTimeout(translateSelectedText, 0);
+  });
 
   for (const name of ["pagerendered", "textlayerrendered", "pagesloaded", "scalechanging", "rotationchanging"]) {
     app.eventBus.on(name, attachLayersSoon);
@@ -756,8 +841,9 @@ const start = async () => {
     renderAllNotes();
   });
 
-  const stored = await storage.local.get([PANEL_KEY]);
-  if (stored?.[PANEL_KEY]) setPanelOpen(true, { remember: false });
+  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY]);
+  const side = stored?.[SIDE_KEY] ?? { open: stored?.[OLD_PANEL_KEY] === true, tab: "notes" };
+  setPanelOpen(side.open === true, { tab: TABS[side.tab] ? side.tab : "translation", remember: false });
 };
 
 start().catch((error) => console.error("Mouse Dictionary:", error));
