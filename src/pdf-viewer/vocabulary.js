@@ -52,6 +52,8 @@ const STYLE = `
     .mdUi:not([data-theme="light"]) { ${DARK_THEME} }
   }
   @keyframes mdPopIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+  /* mdPopIn played backwards: ease-in is the mirror of ease-out. */
+  @keyframes mdPopOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-3px); } }
 
   .mdRecordedLayer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
   .mdRecordedLayer > div, .mdStyleSample > i { position: absolute; box-sizing: border-box; }
@@ -72,6 +74,7 @@ const STYLE = `
     border: 1px solid var(--md-ui-line); border-radius: 12px; box-shadow: var(--md-ui-shadow);
     backdrop-filter: blur(16px); animation: mdPopIn .12s ease-out;
   }
+  #mdRecordedPopup .card.closing { animation: mdPopOut .12s ease-in forwards; pointer-events: none; }
   #mdRecordedPopup .word { display: flex; align-items: center; gap: 7px; font-size: calc(var(--md-popup-size, 13px) + 2px); font-weight: 650; letter-spacing: .01em; }
   #mdRecordedPopup .word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--md-recorded-line); }
   #mdRecordedPopup .meaning { margin-top: 6px; font-size: var(--md-popup-size, 13px); line-height: 1.6; white-space: pre-wrap; }
@@ -337,10 +340,24 @@ const showPopup = (word, rect) => {
   }
 };
 
+// Fades out the way it appeared; hovering a word meanwhile replaces the card and cancels this.
 const hidePopup = () => {
   editing = false;
-  popup.style.display = "none";
   popupWord = "";
+  const card = popup.querySelector(".card");
+  if (!card || popup.style.display !== "block") {
+    popup.style.display = "none";
+    return;
+  }
+  if (card.classList.contains("closing")) return;
+  card.classList.add("closing");
+  card.addEventListener(
+    "animationend",
+    () => {
+      if (popup.firstChild === card) popup.style.display = "none";
+    },
+    { once: true },
+  );
 };
 
 const hidePopupUnlessEditing = () => {
