@@ -39,7 +39,7 @@ const create = (settings) => {
       .md-editor [data-translate]:hover { background: #d7eddf; }
       .md-editor [data-translation] { display: grid; gap: 6px; margin-top: 8px; padding: 9px; border: 1px solid #e0e8e3; border-radius: 8px; background: #f7fbf8; }
       .md-editor [data-translation-result] { color: #263b30; white-space: pre-wrap; overflow-wrap: anywhere; }
-      .md-editor .md-math math { font-size: 1.1em; }
+      .md-editor .md-math math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", math; font-size: 1.1em; }
       .md-editor .md-math math[display="block"] { margin: 4px 0; overflow-x: auto; }
       .md-editor [data-fields] { display: grid; gap: 8px; margin-top: 12px; }
       .md-editor label { display: grid; gap: 4px; color: #546177; font-size: 11px; font-weight: 600; }
