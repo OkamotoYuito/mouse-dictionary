@@ -260,7 +260,7 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     if (current) {
       status.textContent = statusText();
       card.classList.toggle("mdTrSimilar", current.kind === "similar" || current.kind === "similar-failed");
-      source.textContent = current.source;
+      renderTextWithMath(source, current.source);
       if (current.translation) renderTextWithMath(result, current.translation);
       else result.textContent = "";
       retry.hidden = !current.translation && !current.status;
@@ -273,9 +273,14 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     clear.hidden = history.length === 0;
     list.replaceChildren(
       ...history.map((entry) => {
+        const itemSource = create("div", { className: "mdTrItemSource" });
+        const itemText = create("div", { className: "mdTrItemText" });
+        // The English keeps its sub- and superscripts as TeX, and translations may hold TeX too.
+        renderTextWithMath(itemSource, entry.source);
+        renderTextWithMath(itemText, entry.translation);
         const item = create("button", { type: "button", className: "mdTrItem" }, [
-          create("div", { className: "mdTrItemSource", textContent: entry.source }),
-          create("div", { className: "mdTrItemText", textContent: entry.translation }),
+          itemSource,
+          itemText,
           create("div", {
             className: "mdTrItemMeta",
             textContent: [entry.place ? `p.${entry.place.page}` : "", entry.engine].filter(Boolean).join(" ・ "),
