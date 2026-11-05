@@ -469,33 +469,53 @@ body {
   color: #1d1d1f;
 }
 
-.mdNoteIcon {
-  display: block;
-  width: 24px;
+/* A minimized note: a small tag showing its first line. */
+.mdNoteChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: var(--md-note-width, 230px);
   height: 24px;
-  padding: 0;
+  padding: 0 9px 0 5px;
   border: 1px solid var(--md-note-edge);
-  border-radius: 3px 3px 9px 3px;
-  background:
-    linear-gradient(135deg, transparent 0 calc(100% - 9px), var(--md-note-edge) calc(100% - 9px)) no-repeat,
-    var(--md-note-paper);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  border-radius: 4px 4px 9px 4px;
+  background: var(--md-note-paper);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
+  color: #1d1d1f;
+  font: 12px/1 var(--md-font);
   cursor: grab;
   transform: translate(-3px, -3px);
 }
 
-.mdNoteIcon:hover {
+.mdNoteChip:hover {
   transform: translate(-3px, -4px);
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.25);
 }
 
-.mdNote.mdOpen .mdNoteIcon {
+.mdNoteChipMark {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px 2px 5px 2px;
+  background:
+    linear-gradient(135deg, transparent 0 calc(100% - 5px), var(--md-note-edge) calc(100% - 5px)) no-repeat,
+    color-mix(in srgb, var(--md-note-edge) 35%, var(--md-note-paper));
+}
+
+.mdNoteChipText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mdNote.mdOpen .mdNoteChip {
   display: none;
 }
 
 .mdNoteCard {
+  position: relative;
   display: none;
-  width: 230px;
+  width: var(--md-note-width, 230px);
   border-radius: 4px 4px 4px 4px;
   background: var(--md-note-paper);
   box-shadow:
@@ -534,7 +554,7 @@ body {
   align-items: center;
   gap: 4px;
   height: 26px;
-  padding: 0 4px 0 8px;
+  padding: 0 8px 0 4px;
   border-radius: 4px 4px 0 0;
   background: color-mix(in srgb, var(--md-note-edge) 45%, var(--md-note-paper));
   cursor: grab;
@@ -547,6 +567,7 @@ body {
 
 .mdNotePage {
   flex: 1;
+  margin-left: 4px;
   color: rgb(0 0 0 / 0.55);
   font-size: 11px;
   font-weight: 600;
@@ -613,12 +634,46 @@ body {
   field-sizing: content;
 }
 
+/* The right edge sets the width. */
+.mdNoteResize {
+  position: absolute;
+  top: 26px;
+  right: -4px;
+  bottom: 0;
+  width: 9px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.mdNoteResize::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid rgb(0 0 0 / 0.22);
+  border-bottom: 2px solid rgb(0 0 0 / 0.22);
+  border-bottom-right-radius: 2px;
+}
+
+.mdNoteResize:hover::after,
+.mdNote.mdResizing .mdNoteResize::after {
+  border-color: rgb(0 0 0 / 0.5);
+}
+
+.mdNote.mdResizing,
+.mdNote.mdResizing * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
 .mdNoteText::placeholder {
   color: rgb(0 0 0 / 0.38);
 }
 
 .mdNote.mdFlash .mdNoteCard,
-.mdNote.mdFlash .mdNoteIcon {
+.mdNote.mdFlash .mdNoteChip {
   animation: mdNoteFlash 0.9s ease-out;
 }
 

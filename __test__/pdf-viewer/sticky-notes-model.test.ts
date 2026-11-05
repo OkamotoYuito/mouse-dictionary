@@ -1,8 +1,11 @@
 import { expect, test } from "vitest";
 import {
+  clampWidth,
   createNote,
   filterNotes,
+  NOTE_WIDTH,
   normalizeDocument,
+  noteSummary,
   notesKey,
   removeNote,
   sortNotes,
@@ -80,4 +83,21 @@ test("our own write is recognized after chrome.storage sorts its keys", () => {
   expect(storedSignature(returned)).toBe(storedSignature(written));
   expect(storedSignature({ ...returned, title: "Other" })).not.toBe(storedSignature(written));
   expect(storedSignature(undefined)).toBe("null");
+});
+
+test("a note's width stays within limits and defaults for old notes", () => {
+  expect(createNote({ page: 1, x: 0, y: 0 }).width).toBe(NOTE_WIDTH.default);
+  expect(clampWidth(50)).toBe(NOTE_WIDTH.min);
+  expect(clampWidth(5000)).toBe(NOTE_WIDTH.max);
+  expect(clampWidth(300.4)).toBe(300);
+  expect(normalizeDocument({ notes: [{ id: "a", page: 1 }] }).notes[0].width).toBe(NOTE_WIDTH.default);
+  const note = createNote({ page: 1, x: 0, y: 0 });
+  expect(updateNote([note], note.id, { width: 900 })[0].width).toBe(NOTE_WIDTH.max);
+});
+
+test("a minimized note shows its first written line", () => {
+  const note = createNote({ page: 1, x: 0, y: 0, quote: "\n quoted line\nmore" });
+  expect(noteSummary(note)).toBe("quoted line");
+  expect(noteSummary({ ...note, text: "\n  first\nsecond" })).toBe("first");
+  expect(noteSummary({ ...note, quote: "" })).toBe("付箋");
 });

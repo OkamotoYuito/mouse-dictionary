@@ -14,7 +14,9 @@ import {
   createNote,
   filterNotes,
   NOTE_COLORS,
+  NOTE_WIDTH,
   normalizeDocument,
+  noteSummary,
   notesKey,
   removeNote,
   sortNotes,
@@ -216,6 +218,7 @@ let container;
 let panel;
 let panelList;
 let panelTitle;
+let foldAll;
 let addButton;
 let panelButton;
 let countBadge;
@@ -366,21 +369,53 @@ const tool = (text, title, onClick) => {
   return button;
 };
 
+// Dragging a note's right edge sets its width. Double-clicking the edge puts the width back.
+const startResize = (event, id, element) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  focusNote(id);
+  const startX = event.clientX;
+  const startWidth = element.querySelector(".mdNoteCard").getBoundingClientRect().width;
+  let width = startWidth;
+  element.classList.add("mdResizing");
+  const move = (moveEvent) => {
+    width = Math.min(NOTE_WIDTH.max, Math.max(NOTE_WIDTH.min, startWidth + moveEvent.clientX - startX));
+    element.style.setProperty("--md-note-width", `${Math.round(width)}px`);
+  };
+  const end = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    element.classList.remove("mdResizing");
+    if (Math.round(width) === Math.round(startWidth)) return;
+    // Only the width changed, so the note isn't redrawn.
+    setNotes(updateNote(state.notes, id, { width }));
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+};
+
 const renderNote = (note) => {
   noteElements.get(note.id)?.remove();
   const { paper, edge } = NOTE_COLORS[note.color];
 
-  const icon = create("button", { type: "button", className: "mdNoteIcon", title: note.text || "付箋" });
-  icon.setAttribute("aria-label", "付箋を開く");
-  icon.addEventListener("pointerdown", (event) =>
+  // Minimized, a note is a small tag with its first line, as wide as the note at most.
+  const summary = create("span", { className: "mdNoteChipText", textContent: noteSummary(note) });
+  const chip = create("button", { type: "button", className: "mdNoteChip", title: note.text || note.quote || "付箋" }, [
+    create("span", { className: "mdNoteChipMark" }),
+    summary,
+  ]);
+  chip.setAttribute("aria-label", "付箋を開く");
+  chip.addEventListener("pointerdown", (event) =>
     startDrag(event, note.id, () => change(note.id, { collapsed: false })),
   );
 
+  // Close and minimize sit on the left, so they stay in reach when a wide note runs off the view.
   const head = create("div", { className: "mdNoteHead" }, [
+    tool("×", "削除", () => deleteNote(note.id)),
+    tool("–", "最小化", () => change(note.id, { collapsed: true })),
     create("span", { className: "mdNotePage", textContent: `p.${note.page}` }),
     ...Object.keys(NOTE_COLORS).map((color) => swatch(note, color)),
-    tool("–", "たたむ", () => change(note.id, { collapsed: true })),
-    tool("×", "削除", () => deleteNote(note.id)),
   ]);
   head.addEventListener("pointerdown", (event) => {
     if (event.target.closest("button")) return;
@@ -390,7 +425,9 @@ const renderNote = (note) => {
   const text = create("textarea", { className: "mdNoteText", value: note.text, placeholder: "メモを書く…" });
   text.addEventListener("input", () => {
     state.notes = updateNote(state.notes, note.id, { text: text.value });
-    icon.title = text.value || "付箋";
+    const current = noteById(note.id);
+    summary.textContent = noteSummary(current);
+    chip.title = current.text || current.quote || "付箋";
     saveLater();
     renderPanel();
   });
@@ -407,7 +444,12 @@ const renderNote = (note) => {
   if (note.quote) card.append(create("div", { className: "mdNoteQuote", textContent: note.quote }));
   card.append(text);
 
-  const element = create("div", { className: "mdNote" }, [icon, card]);
+  const element = create("div", { className: "mdNote" }, [chip, card]);
+  const resizer = create("div", { className: "mdNoteResize", title: "ドラッグで幅を変更（ダブルクリックで元の幅）" });
+  resizer.addEventListener("pointerdown", (event) => startResize(event, note.id, element));
+  resizer.addEventListener("dblclick", () => change(note.id, { width: NOTE_WIDTH.default }));
+  card.append(resizer);
+
   element.dataset.id = note.id;
   element.classList.toggle("mdOpen", !note.collapsed);
   element.classList.toggle("mdFocused", state.focusedId === note.id);
@@ -415,6 +457,7 @@ const renderNote = (note) => {
   element.style.top = `${note.y * 100}%`;
   element.style.setProperty("--md-note-paper", paper);
   element.style.setProperty("--md-note-edge", edge);
+  element.style.setProperty("--md-note-width", `${note.width}px`);
   // Keep PDF.js and the dictionary's own selection handling away from the note.
   element.addEventListener("mousedown", (event) => event.stopPropagation());
   element.addEventListener("pointerdown", () => focusNote(note.id));
@@ -535,6 +578,8 @@ const copyMarkdown = async () => {
 const renderPanel = () => {
   if (!panel) return;
   panelTitle.textContent = state.notes.length ? `付箋 ${state.notes.length}` : "付箋";
+  foldAll.hidden = state.notes.length === 0;
+  foldAll.textContent = state.notes.some((note) => !note.collapsed) ? "すべて最小化" : "すべて開く";
   if (!document.getElementById("outerContainer")?.classList.contains("mdNotesOpen")) return;
 
   const notes = sortNotes(filterNotes(state.notes, state.query));
@@ -596,6 +641,12 @@ const buildPanel = () => {
     title: "付箋をすべてMarkdownでコピー（Obsidianなどに貼れます）",
   });
   copy.addEventListener("click", copyMarkdown);
+  foldAll = create("button", { type: "button" });
+  foldAll.addEventListener("click", () => {
+    const collapsed = state.notes.some((note) => !note.collapsed);
+    setNotes(state.notes.map((note) => (note.collapsed === collapsed ? note : { ...note, collapsed })));
+    renderAllNotes();
+  });
   const search = create("input", { type: "search", className: "mdPanelSearch", placeholder: "付箋を検索" });
   search.addEventListener("input", () => {
     state.query = search.value;
@@ -604,7 +655,7 @@ const buildPanel = () => {
   panelList = create("div", { className: "mdPanelList" });
   toast = create("div", { className: "mdPanelToast", role: "status" });
   panel = create("aside", { id: "mdNotesPanel" }, [
-    create("div", { className: "mdPanelHead" }, [panelTitle, copy]),
+    create("div", { className: "mdPanelHead" }, [panelTitle, foldAll, copy]),
     search,
     panelList,
     toast,

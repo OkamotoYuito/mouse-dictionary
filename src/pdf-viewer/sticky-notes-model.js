@@ -18,6 +18,22 @@ export const NOTE_COLORS = {
 
 export const DEFAULT_COLOR = "yellow";
 
+// A note's width in CSS pixels; the height follows its text.
+export const NOTE_WIDTH = { min: 160, max: 640, default: 230 };
+
+export const clampWidth = (width) =>
+  Number.isFinite(width) ? Math.round(Math.min(NOTE_WIDTH.max, Math.max(NOTE_WIDTH.min, width))) : NOTE_WIDTH.default;
+
+// What a minimized note shows: the first line of its text, else of its quote.
+export const noteSummary = (note) => {
+  const firstLine = (text) =>
+    text
+      .split("\n")
+      .find((line) => line.trim())
+      ?.trim() ?? "";
+  return firstLine(note.text) || firstLine(note.quote) || "付箋";
+};
+
 export const notesKey = (fingerprint) => `pdfStickyNotes:${fingerprint}`;
 
 const clamp01 = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -33,6 +49,7 @@ export const createNote = ({ page, x, y, color = DEFAULT_COLOR, quote = "", now 
   quote,
   color: NOTE_COLORS[color] ? color : DEFAULT_COLOR,
   collapsed: false,
+  width: NOTE_WIDTH.default,
   createdAt: now,
   updatedAt: now,
 });
@@ -48,6 +65,7 @@ const normalizeNote = (note) => {
     quote: typeof note.quote === "string" ? note.quote : "",
     color: NOTE_COLORS[note.color] ? note.color : DEFAULT_COLOR,
     collapsed: note.collapsed === true,
+    width: clampWidth(note.width),
     createdAt: Number(note.createdAt) || 0,
     updatedAt: Number(note.updatedAt) || 0,
   };
@@ -84,6 +102,7 @@ export const updateNote = (notes, id, change, now = Date.now()) =>
           ...change,
           ...(change.x === undefined ? {} : { x: clamp01(change.x) }),
           ...(change.y === undefined ? {} : { y: clamp01(change.y) }),
+          ...(change.width === undefined ? {} : { width: clampWidth(change.width) }),
           updatedAt: now,
         }
       : note,
