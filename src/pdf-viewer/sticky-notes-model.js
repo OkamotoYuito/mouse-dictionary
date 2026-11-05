@@ -36,15 +36,17 @@ export const noteSummary = (note) => {
 
 export const notesKey = (fingerprint) => `pdfStickyNotes:${fingerprint}`;
 
-const clamp01 = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+// A note's top-left corner, as a fraction of its page. It may lie off the page, so that a note can
+// hang off any edge: as far left or up as a page's width or height, and up to the right or bottom edge.
+const clampPlace = (value) => Math.min(1, Math.max(-1, Number.isFinite(value) ? value : 0));
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 export const createNote = ({ page, x, y, color = DEFAULT_COLOR, quote = "", now = Date.now() }) => ({
   id: newId(),
   page,
-  x: clamp01(x),
-  y: clamp01(y),
+  x: clampPlace(x),
+  y: clampPlace(y),
   text: "",
   quote,
   color: NOTE_COLORS[color] ? color : DEFAULT_COLOR,
@@ -59,8 +61,8 @@ const normalizeNote = (note) => {
   return {
     id: note.id,
     page: note.page,
-    x: clamp01(note.x),
-    y: clamp01(note.y),
+    x: clampPlace(note.x),
+    y: clampPlace(note.y),
     text: typeof note.text === "string" ? note.text : "",
     quote: typeof note.quote === "string" ? note.quote : "",
     color: NOTE_COLORS[note.color] ? note.color : DEFAULT_COLOR,
@@ -100,8 +102,8 @@ export const updateNote = (notes, id, change, now = Date.now()) =>
       ? {
           ...note,
           ...change,
-          ...(change.x === undefined ? {} : { x: clamp01(change.x) }),
-          ...(change.y === undefined ? {} : { y: clamp01(change.y) }),
+          ...(change.x === undefined ? {} : { x: clampPlace(change.x) }),
+          ...(change.y === undefined ? {} : { y: clampPlace(change.y) }),
           ...(change.width === undefined ? {} : { width: clampWidth(change.width) }),
           updatedAt: now,
         }

@@ -19,8 +19,10 @@ test("notes are keyed by the PDF's fingerprint", () => {
 });
 
 test("a new note stays on its page and falls back to yellow", () => {
-  const note = createNote({ page: 2, x: 1.4, y: -0.2, color: "nope", now: 5 });
-  expect(note).toMatchObject({ page: 2, x: 1, y: 0, color: "yellow", text: "", collapsed: false, createdAt: 5 });
+  const note = createNote({ page: 2, x: 1.4, y: -1.5, color: "nope", now: 5 });
+  expect(note).toMatchObject({ page: 2, x: 1, y: -1, color: "yellow", text: "", collapsed: false, createdAt: 5 });
+  // Off the left or top edge is fine, like off the right edge.
+  expect(createNote({ page: 1, x: -0.2, y: -0.05 })).toMatchObject({ x: -0.2, y: -0.05 });
   expect(note.id).toMatch(/^[a-z0-9]+$/);
 });
 

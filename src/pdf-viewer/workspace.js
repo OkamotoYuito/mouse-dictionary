@@ -366,7 +366,11 @@ const startDrag = (event, id, onClick) => {
     };
     if (!target.div) return;
     const rect = target.div.getBoundingClientRect();
-    change(id, { page: target.page, x: (left - rect.left) / rect.width, y: (top - rect.top) / rect.height });
+    // The note may go off the page on every side, but not beyond being just outside it.
+    const size = element.getBoundingClientRect();
+    const x = Math.max((left - rect.left) / rect.width, -size.width / rect.width);
+    const y = Math.max((top - rect.top) / rect.height, -size.height / rect.height);
+    change(id, { page: target.page, x, y });
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
