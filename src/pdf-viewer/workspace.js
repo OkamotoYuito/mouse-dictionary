@@ -30,6 +30,8 @@ const SIDE_KEY = "pdfSidePanel"; // { open, tab }
 const OLD_PANEL_KEY = "pdfStickyNotesPanelOpen";
 const TABS = { dictionary: "辞書", translation: "翻訳", notes: "付箋" };
 const DOCK_KEY = "pdfDictionaryDocked";
+const WIDTH_KEY = "pdfSidePanelWidth";
+const SIDE_WIDTH = { min: 280, max: 760, default: 360 };
 const PANEL_TRANSITION = 220; // ms, a little over the panel's slide
 const SAVE_DELAY = 400;
 const DRAG_THRESHOLD = 3;
@@ -702,6 +704,48 @@ const setDocked = (value, { remember = true } = {}) => {
   sendDock();
 };
 
+// The panel's left edge can be dragged to make it wider or narrower; the width is kept.
+const clampSideWidth = (width) =>
+  Math.round(Math.max(SIDE_WIDTH.min, Math.min(SIDE_WIDTH.max, window.innerWidth * 0.7, width)));
+
+const setSideWidth = (width) => {
+  document.documentElement.style.setProperty("--md-side-width", `${clampSideWidth(width)}px`);
+};
+
+const buildResizer = () => {
+  const resizer = create("div", { className: "mdSideResizer", title: "ドラッグで幅を変更（ダブルクリックで元の幅）" });
+  resizer.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = panel.getBoundingClientRect().width;
+    let width = startWidth;
+    document.body.classList.add("mdSideResizing");
+    const move = (moveEvent) => {
+      width = clampSideWidth(startWidth + startX - moveEvent.clientX);
+      setSideWidth(width);
+      sendDock();
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      document.body.classList.remove("mdSideResizing");
+      storage.local.set({ [WIDTH_KEY]: width });
+      app.eventBus.dispatch("resize", { source: window });
+      sendDock();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+  });
+  resizer.addEventListener("dblclick", () => {
+    setSideWidth(SIDE_WIDTH.default);
+    storage.local.remove(WIDTH_KEY);
+    app.eventBus.dispatch("resize", { source: window });
+    sendDock();
+  });
+  return resizer;
+};
+
 const buildDictionaryPane = () => {
   undockButton = create("button", { type: "button", textContent: "小窓に切り離す" });
   undockButton.addEventListener("click", () => setDocked(false));
@@ -781,6 +825,7 @@ const buildPanel = () => {
   }
 
   panel = create("aside", { id: "mdSidePanel" }, [
+    buildResizer(),
     tabBar,
     tabPanes.dictionary,
     tabPanes.translation,
@@ -916,7 +961,8 @@ const start = async () => {
     renderAllNotes();
   });
 
-  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY, DOCK_KEY]);
+  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY, DOCK_KEY, WIDTH_KEY]);
+  if (Number.isFinite(stored?.[WIDTH_KEY])) setSideWidth(stored[WIDTH_KEY]);
   const side = stored?.[SIDE_KEY] ?? { open: stored?.[OLD_PANEL_KEY] === true, tab: "notes" };
   setDocked(stored?.[DOCK_KEY] !== false, { remember: false });
   setPanelOpen(side.open === true, { tab: TABS[side.tab] ? side.tab : "dictionary", remember: false });

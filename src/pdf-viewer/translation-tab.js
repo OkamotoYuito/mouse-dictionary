@@ -19,6 +19,10 @@ const create = (tag, props = {}, children = []) => {
   return element;
 };
 
+const SIZE_KEY = "pdfTranslationSize";
+const HISTORY_OPEN_KEY = "pdfTranslationHistoryOpen";
+const SIZES = { small: { label: "小", px: 13 }, medium: { label: "中", px: 15 }, large: { label: "大", px: 17.5 } };
+
 const button = (textContent, onClick, className = "") => {
   const element = create("button", { type: "button", textContent, className });
   element.addEventListener("click", onClick);
@@ -35,9 +39,29 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
 
   const status = create("div", { className: "mdTrStatus", role: "status" });
   status.setAttribute("aria-live", "polite");
-  const source = create("div", { className: "mdTrSource", title: "クリックで全文表示" });
-  source.addEventListener("click", () => source.classList.toggle("mdExpanded"));
-  const result = create("div", { className: "mdTrResult" });
+  // The English, folded to two lines unless opened; the Japanese is what's read.
+  const source = create("div", { className: "mdTrSource" });
+  const sourceToggle = create("button", { type: "button", className: "mdTrSourceToggle", textContent: "原文" });
+  sourceToggle.setAttribute("aria-expanded", "false");
+  sourceToggle.addEventListener("click", () => {
+    const open = !source.classList.contains("mdExpanded");
+    source.classList.toggle("mdExpanded", open);
+    sourceToggle.setAttribute("aria-expanded", String(open));
+  });
+  const result = create("div", { className: "mdTrResult", lang: "ja" });
+
+  // Text size of the translations, kept across PDFs.
+  const sizeButtons = Object.entries(SIZES).map(([name, { label }]) => {
+    const sizeButton = create("button", { type: "button", textContent: label, title: `文字サイズ: ${label}` });
+    sizeButton.addEventListener("click", () => {
+      setSize(name);
+      storage.local.set({ [SIZE_KEY]: name });
+    });
+    sizeButton.dataset.size = name;
+    return sizeButton;
+  });
+  const sizeSwitch = create("div", { className: "mdTrSize", role: "group" }, sizeButtons);
+  sizeSwitch.setAttribute("aria-label", "文字サイズ");
   const retry = button("訳し直す", () => current && run(current.source, current.place, { force: true }));
   const copy = button("コピー", async () => {
     try {
@@ -53,9 +77,14 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
     showToast("付箋にしました");
   });
   const actions = create("div", { className: "mdTrActions" }, [retry, copy, toNote]);
-  const card = create("section", { className: "mdTrCurrent" }, [status, source, result, actions]);
+  const card = create("section", { className: "mdTrCurrent" }, [
+    create("div", { className: "mdTrHead" }, [sourceToggle, sizeSwitch]),
+    source,
+    result,
+    create("div", { className: "mdTrFoot" }, [status, actions]),
+  ]);
 
-  const historyTitle = create("h3");
+  const historyTitle = create("span");
   const clear = button("消去", () => {
     if (!history.length || !confirm("このPDFの翻訳履歴を消去しますか？")) return;
     history = [];
@@ -63,16 +92,30 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
     render();
   });
   const list = create("div", { className: "mdTrHistory" });
+  // Folded away by default so the current translation has the room.
+  const historyBox = create("details", { className: "mdTrHistoryBox" }, [
+    create("summary", { className: "mdTrHistoryHead" }, [historyTitle, clear]),
+    list,
+  ]);
+  historyBox.addEventListener("toggle", () => storage.local.set({ [HISTORY_OPEN_KEY]: historyBox.open }));
+  clear.addEventListener("click", (event) => event.preventDefault()); // don't fold the history
   const empty = create("div", { className: "mdPanelEmpty" }, [
     create("p", { textContent: "本文の英文を選ぶと、ここに翻訳が出ます。" }),
     create("p", { textContent: "一度訳した文はこのPDFの履歴に残り、同じ文を選ぶと履歴からすぐに出します。" }),
   ]);
-  const element = create("div", { className: "mdTrTab" }, [
-    card,
-    empty,
-    create("div", { className: "mdTrHistoryHead" }, [historyTitle, clear]),
-    list,
-  ]);
+  const element = create("div", { className: "mdTrTab" }, [card, empty, historyBox]);
+
+  const setSize = (name) => {
+    const size = SIZES[name] ? name : "medium";
+    element.style.setProperty("--md-tr-size", `${SIZES[size].px}px`);
+    for (const sizeButton of sizeButtons)
+      sizeButton.setAttribute("aria-pressed", String(sizeButton.dataset.size === size));
+  };
+  setSize("medium");
+  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY]).then((stored) => {
+    setSize(stored?.[SIZE_KEY]);
+    historyBox.open = stored?.[HISTORY_OPEN_KEY] === true;
+  });
 
   const save = () => {
     if (!key) return;
@@ -169,7 +212,8 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
       toNote.hidden = !current.translation || !current.place;
     }
 
-    historyTitle.textContent = `履歴 ${history.length}件`;
+    historyTitle.textContent = `翻訳履歴 ${history.length}件`;
+    historyBox.hidden = history.length === 0;
     clear.hidden = history.length === 0;
     list.replaceChildren(
       ...history.map((entry) => {
