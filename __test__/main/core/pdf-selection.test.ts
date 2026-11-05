@@ -46,7 +46,7 @@ test("keeps superscripts and subscripts that PDF.js draws as separate spans", ()
     [" ", 105, 0],
     ["there", 100, 9.5],
   ]);
-  expect(readPdfSelection(selectAll(layer))).toBe("with M_∗ ≳ 10^3 M_⊙ there");
+  expect(readPdfSelection(selectAll(layer))).toBe("with $M_{∗}$ ≳ $10^{3}$ $M_{⊙}$ there");
 });
 
 test("joins scripts spread over several spans", () => {
@@ -55,7 +55,17 @@ test("joins scripts spread over several spans", () => {
     ["−", 97, 6.5],
     ["1", 97, 6.5],
   ]);
-  expect(readPdfSelection(selectAll(layer))).toBe("km s^{−1}");
+  expect(readPdfSelection(selectAll(layer))).toBe("km $s^{−1}$");
+});
+
+test("keeps a subscript and a superscript on the same base in one formula", () => {
+  const layer = renderTextLayer([
+    ["(T", 100, 9.5],
+    ["e", 105, 6.5],
+    ["2", 97, 6.5],
+    [")", 100, 9.5],
+  ]);
+  expect(readPdfSelection(selectAll(layer))).toBe("($T_{e}^{2}$)");
 });
 
 test("ignores selections outside a PDF text layer", () => {

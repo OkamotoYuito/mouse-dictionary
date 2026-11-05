@@ -1,6 +1,6 @@
 {
   "name": "mouse-dictionary",
-  "version": "1.7.43",
+  "version": "1.7.44",
   "repository": "https://github.com/wtetsu/mouse-dictionary.git",
   "author": "wtetsu",
   "license": "MIT",
@@ -42,6 +42,7 @@
     "react-ace": "^15.0.0",
     "react-dom": "^19.3.0",
     "sweetalert": "^2.1.2",
+    "temml": "^0.14.0",
     "uniqlist": "^1.0.4"
   },
   "devDependencies": {

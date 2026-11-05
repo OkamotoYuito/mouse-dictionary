@@ -8,6 +8,7 @@ import dom from "../lib/dom";
 import storage from "../lib/storage";
 import template from "../lib/template";
 import utils from "../lib/utils";
+import { renderTextWithMath } from "./math";
 import { prepareText, translatePreservingTex } from "./translation";
 
 const createDialogElement = (settings) => {
@@ -38,6 +39,8 @@ const create = (settings) => {
       .md-editor [data-translate]:hover { background: #d7eddf; }
       .md-editor [data-translation] { display: grid; gap: 6px; margin-top: 8px; padding: 9px; border: 1px solid #e0e8e3; border-radius: 8px; background: #f7fbf8; }
       .md-editor [data-translation-result] { color: #263b30; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .md-editor .md-math math { font-size: 1.1em; }
+      .md-editor .md-math math[display="block"] { margin: 4px 0; overflow-x: auto; }
       .md-editor [data-fields] { display: grid; gap: 8px; margin-top: 12px; }
       .md-editor label { display: grid; gap: 4px; color: #546177; font-size: 11px; font-weight: 600; }
       .md-editor input, .md-editor textarea { width: 100%; padding: 8px 10px; border: 1px solid #d8deea; border-radius: 8px; background: #f9fafc; color: #202b3c; font: 13px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -167,7 +170,7 @@ const create = (settings) => {
     });
     if (request !== translationRequestId) return;
     if (remote?.translation) {
-      translationResult.textContent = remote.translation;
+      renderTextWithMath(translationResult, remote.translation);
       translationStatus.textContent = `英語 → 日本語（${remote.engine ?? "Azure"}）`;
       return;
     }
@@ -197,7 +200,7 @@ const create = (settings) => {
       translationStatus.textContent = "翻訳しています…";
       const translated = await translatePreservingTex(translator, text);
       if (request !== translationRequestId) return;
-      translationResult.textContent = translated;
+      renderTextWithMath(translationResult, translated);
       translationStatus.textContent = `英語 → 日本語${fallbackNote}`;
     } catch (error) {
       console.error(error);

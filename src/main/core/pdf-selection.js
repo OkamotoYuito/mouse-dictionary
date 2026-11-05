@@ -9,10 +9,30 @@ const SCRIPT_SIZE_RATIO = 0.8;
 const isInTextLayer = (node) =>
   !!(node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest(".textLayer");
 
-const formatScript = (mark, text) => (text.length === 1 ? `${mark}${text}` : `${mark}{${text}}`);
+// The word a script is attached to, e.g. "10" in "(10" or "s" in "km s".
+const BASE = /[^\s([{,;:$]*$/;
+
+// Writes scripts as inline TeX together with their base word: "M_∗ 10^3" becomes "$M_{∗}$ $10^{3}$".
+const toTex = (tokens) => {
+  let text = "";
+  let inMath = false;
+  for (const { mark, text: part } of tokens) {
+    if (!mark) {
+      text += part;
+      inMath = false;
+    } else if (inMath) {
+      text = `${text.slice(0, -1)}${mark}{${part.trim()}}$`;
+    } else {
+      const base = text.match(BASE)[0];
+      text = `${text.slice(0, text.length - base.length)}$${base}${mark}{${part.trim()}}$`;
+      inMath = true;
+    }
+  }
+  return text;
+};
 
 // PDF.js draws superscripts and subscripts as separate, smaller text-layer spans, so the plain selection
-// text turns "10³ M⊙" into "10 3 M ⊙". Reading the spans' sizes and positions keeps them as "10^3 M_⊙".
+// text turns "10³ M⊙" into "10 3 M ⊙". Reading the spans' sizes and positions keeps them as TeX scripts.
 export const readPdfSelection = (selection = window.getSelection()) => {
   if (!selection?.rangeCount || !isInTextLayer(selection.anchorNode)) return null;
   const range = selection.getRangeAt(0);
@@ -59,5 +79,5 @@ export const readPdfSelection = (selection = window.getSelection()) => {
     }
   }
 
-  return tokens.map(({ mark, text }) => (mark ? formatScript(mark, text.trim()) : text)).join("");
+  return toTex(tokens);
 };
