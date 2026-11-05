@@ -18,28 +18,36 @@ import {
   formsOf,
   lookupMeaning,
   normalizeEmphasis,
+  normalizePopup,
   normalizeWord,
+  POPUP_FONT_SIZES,
+  POPUP_KEY,
+  POPUP_THEMES,
+  POPUP_WIDTHS,
   RECORDED_WORDS_KEY,
 } from "./recorded-words";
 
 const BUTTON_DELAY = 600;
 const SWATCHES = ["#ffc400", "#ff7a59", "#ff5fa2", "#8b6cff", "#3b9eff", "#2fbf71"];
 
+const DARK_THEME = `
+  --md-ui-bg: rgba(44, 44, 46, .96); --md-ui-fg: #f5f5f7; --md-ui-muted: #a1a1a6; --md-ui-line: rgba(255, 255, 255, .1);
+  --md-ui-hover: rgba(255, 255, 255, .08); --md-ui-strong-bg: #f5f5f7; --md-ui-strong-fg: #1d1d1f;
+  --md-ui-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .5);
+`;
+
 // The record button, popup and panel share the top z-index with Mouse Dictionary's own window,
 // so they are moved to the end of the body when shown to stay in front of it.
 const STYLE = `
-  :root {
+  .mdUi {
     --md-ui-bg: rgba(255, 255, 255, .96); --md-ui-fg: #1d1d1f; --md-ui-muted: #6e6e73; --md-ui-line: rgba(0, 0, 0, .08);
     --md-ui-hover: rgba(0, 0, 0, .05); --md-ui-accent: #0a84ff; --md-ui-strong-bg: #1d1d1f; --md-ui-strong-fg: #fff;
     --md-ui-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 28px rgba(0, 0, 0, .16);
     --md-ui-font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
   }
+  .mdUi[data-theme="dark"] { ${DARK_THEME} }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --md-ui-bg: rgba(44, 44, 46, .96); --md-ui-fg: #f5f5f7; --md-ui-muted: #a1a1a6; --md-ui-line: rgba(255, 255, 255, .1);
-      --md-ui-hover: rgba(255, 255, 255, .08); --md-ui-strong-bg: #f5f5f7; --md-ui-strong-fg: #1d1d1f;
-      --md-ui-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .5);
-    }
+    .mdUi:not([data-theme="light"]) { ${DARK_THEME} }
   }
   @keyframes mdPopIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
@@ -58,13 +66,13 @@ const STYLE = `
   #mdRecordedPopup, #mdRecordButton, #mdEmphasisPanel { font-family: var(--md-ui-font); box-sizing: border-box; }
   #mdRecordedPopup { position: fixed; display: none; z-index: 2147483647; padding-top: 6px; }
   #mdRecordedPopup .card {
-    min-width: 180px; max-width: 300px; padding: 12px 14px 10px; color: var(--md-ui-fg); background: var(--md-ui-bg);
+    min-width: 180px; max-width: var(--md-popup-width, 300px); padding: 12px 14px 10px; color: var(--md-ui-fg); background: var(--md-ui-bg);
     border: 1px solid var(--md-ui-line); border-radius: 12px; box-shadow: var(--md-ui-shadow);
     backdrop-filter: blur(16px); animation: mdPopIn .12s ease-out;
   }
-  #mdRecordedPopup .word { display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+  #mdRecordedPopup .word { display: flex; align-items: center; gap: 7px; font-size: calc(var(--md-popup-size, 13px) + 2px); font-weight: 650; letter-spacing: .01em; }
   #mdRecordedPopup .word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--md-recorded-line); }
-  #mdRecordedPopup .meaning { margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+  #mdRecordedPopup .meaning { margin-top: 6px; font-size: var(--md-popup-size, 13px); line-height: 1.6; white-space: pre-wrap; }
   #mdRecordedPopup .meaning.empty { color: var(--md-ui-muted); }
   #mdRecordedPopup .footer {
     display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--md-ui-line);
@@ -76,6 +84,8 @@ const STYLE = `
   }
   #mdRecordedPopup button:hover { background: var(--md-ui-hover); }
   #mdRecordedPopup button.danger { color: #ff453a; }
+  #mdRecordedPopup button.settings { display: flex; padding: 4px; margin-left: auto; color: var(--md-ui-muted); }
+  #mdRecordedPopup button.settings svg { width: 14px; height: 14px; fill: currentColor; }
 
   #mdRecordButton {
     position: fixed; display: none; z-index: 2147483647; padding: 6px 12px; font-size: 12.5px; font-weight: 600;
@@ -90,7 +100,19 @@ const STYLE = `
     color: var(--md-ui-fg); background: var(--md-ui-bg); border: 1px solid var(--md-ui-line); border-radius: 14px;
     box-shadow: var(--md-ui-shadow); backdrop-filter: blur(16px); animation: mdPopIn .12s ease-out; font-size: 13px;
   }
-  #mdEmphasisPanel h2 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+  #mdEmphasisPanel { max-height: calc(100vh - 60px); overflow-y: auto; }
+  #mdEmphasisPanel h2 { margin: 0 0 4px; font-size: 14px; font-weight: 650; }
+  #mdEmphasisPanel h3 {
+    margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--md-ui-line); font-size: 12px; font-weight: 650;
+  }
+  #mdEmphasisPanel .segmented { display: flex; padding: 2px; background: var(--md-ui-hover); border-radius: 8px; }
+  #mdEmphasisPanel .segmented button {
+    flex: 1; padding: 4px 0; font: 12px var(--md-ui-font); color: var(--md-ui-fg); background: none; border: 0;
+    border-radius: 6px; cursor: pointer;
+  }
+  #mdEmphasisPanel .segmented button[aria-pressed="true"] { background: var(--md-ui-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); font-weight: 600; }
+  #mdEmphasisPanel .switch { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; cursor: pointer; }
+  #mdEmphasisPanel .switch input { width: 32px; height: 18px; margin: 0; accent-color: var(--md-ui-accent); cursor: pointer; }
   #mdEmphasisPanel .label { margin: 12px 0 6px; font-size: 11px; font-weight: 600; color: var(--md-ui-muted); }
   #mdEmphasisPanel .styles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   #mdEmphasisPanel .styles button {
@@ -130,9 +152,26 @@ let emphasis = normalizeEmphasis();
 
 const create = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 
-const recordButton = create("button", { id: "mdRecordButton", type: "button", textContent: "単語と訳を記録" });
-const popup = create("div", { id: "mdRecordedPopup" });
-const panel = create("div", { id: "mdEmphasisPanel" });
+let popupSettings = normalizePopup();
+
+const recordButton = create("button", {
+  id: "mdRecordButton",
+  className: "mdUi",
+  type: "button",
+  textContent: "単語と訳を記録",
+});
+const popup = create("div", { id: "mdRecordedPopup", className: "mdUi" });
+const panel = create("div", { id: "mdEmphasisPanel", className: "mdUi" });
+
+const GEAR_ICON =
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1l.4 1.9c.4.2.8.4 1.1.7l1.9-.6 1.4 2.4-1.5 1.3a5 5 0 0 1 0 1.3l1.5 1.3-1.4 2.4-1.9-.6c-.3.3-.7.5-1.1.7L9.4 15H6.6l-.4-1.9a5 5 0 0 1-1.1-.7l-1.9.6-1.4-2.4 1.5-1.3a5 5 0 0 1 0-1.3L1.8 5.4l1.4-2.4 1.9.6c.3-.3.7-.5 1.1-.7L6.6 1zM8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg>';
+
+// The theme applies to the popup, the record button and the panel alike.
+const applyPopupSettings = () => {
+  for (const element of [popup, recordButton, panel]) element.dataset.theme = popupSettings.theme;
+  popup.style.setProperty("--md-popup-size", `${POPUP_FONT_SIZES[popupSettings.fontSize][1]}px`);
+  popup.style.setProperty("--md-popup-width", `${POPUP_WIDTHS[popupSettings.width][1]}px`);
+};
 
 // Draw boxes over every occurrence of the recorded words on one page.
 const markPage = (pageDiv) => {
@@ -252,8 +291,17 @@ const showPopup = (word, rect) => {
     saveWords(rest);
     hidePopup();
   });
+  const settings = button("", "settings");
+  settings.title = "ポップアップの表示設定";
+  settings.innerHTML = GEAR_ICON;
+  settings.addEventListener("click", () => {
+    hidePopup();
+    openPanel("popup");
+  });
   const footer = create("div", { className: "footer" });
-  footer.append(create("span", { className: "source", textContent: source }), edit, remove);
+  footer.append(create("span", { className: "source", textContent: popupSettings.showSource ? source : "" }));
+  if (popupSettings.showActions) footer.append(edit, remove);
+  footer.append(settings);
   const card = create("div", { className: "card" });
   card.append(
     create("div", { className: "word", textContent: word }),
@@ -309,6 +357,33 @@ const updateEmphasis = (change) => {
   renderPanel();
 };
 
+const updatePopupSettings = (change) => {
+  popupSettings = normalizePopup({ ...popupSettings, ...change });
+  applyPopupSettings();
+  storage.local.set({ [POPUP_KEY]: popupSettings });
+  renderPanel();
+};
+
+// A row of buttons choosing one of the options; options map a value to a label or [label, ...].
+const segmented = (options, current, onChoose) => {
+  const group = create("div", { className: "segmented" });
+  for (const [value, option] of Object.entries(options)) {
+    const choice = button(Array.isArray(option) ? option[0] : option);
+    choice.setAttribute("aria-pressed", String(value === current));
+    choice.addEventListener("click", () => onChoose(value));
+    group.append(choice);
+  }
+  return group;
+};
+
+const toggle = (label, checked, onChange) => {
+  const row = create("label", { className: "switch", textContent: label });
+  const input = create("input", { type: "checkbox", checked });
+  input.addEventListener("change", () => onChange(input.checked));
+  row.append(input);
+  return row;
+};
+
 const styleSample = (style) => {
   const sample = create("span", { className: "mdStyleSample" });
   sample.dataset.style = style;
@@ -353,14 +428,29 @@ const renderPanel = () => {
   slider.addEventListener("change", () => updateEmphasis({ opacity: Number(slider.value) }));
   strength.append(slider, value);
 
+  const popupSection = create("h3", { textContent: "訳のポップアップ" });
+  popupSection.dataset.section = "popup";
+
   panel.replaceChildren(
-    create("h2", { textContent: "記録した単語の強調" }),
+    create("h2", { textContent: "表示設定" }),
+    create("h3", { textContent: "記録した単語の強調" }),
     create("div", { className: "label", textContent: "スタイル" }),
     styles,
     create("div", { className: "label", textContent: "色" }),
     colors,
     create("div", { className: "label", textContent: "濃さ" }),
     strength,
+    popupSection,
+    create("div", { className: "label", textContent: "文字の大きさ" }),
+    segmented(POPUP_FONT_SIZES, popupSettings.fontSize, (fontSize) => updatePopupSettings({ fontSize })),
+    create("div", { className: "label", textContent: "最大の幅" }),
+    segmented(POPUP_WIDTHS, popupSettings.width, (width) => updatePopupSettings({ width })),
+    create("div", { className: "label", textContent: "テーマ（ボタンとこのパネルにも適用）" }),
+    segmented(POPUP_THEMES, popupSettings.theme, (theme) => updatePopupSettings({ theme })),
+    toggle("出どころを表示", popupSettings.showSource, (showSource) => updatePopupSettings({ showSource })),
+    toggle("「訳を編集」「記録を消す」を表示", popupSettings.showActions, (showActions) =>
+      updatePopupSettings({ showActions }),
+    ),
     create("div", { className: "count", textContent: `記録した単語 ${Object.keys(recordedWords).length}語` }),
   );
 };
@@ -369,28 +459,35 @@ const closePanel = () => {
   panel.style.display = "none";
 };
 
+const openPanel = (section) => {
+  renderPanel();
+  document.body.append(panel);
+  panel.style.display = "block";
+  if (section) panel.querySelector(`[data-section="${section}"]`)?.scrollIntoView({ block: "start" });
+};
+
 const addToolbarButton = () => {
-  const toggle = create("button", {
+  const toolbarButton = create("button", {
     id: "mdEmphasisToggle",
     className: "toolbarButton",
     type: "button",
-    title: "記録した単語の強調",
+    title: "記録した単語の表示設定",
   });
-  toggle.innerHTML =
+  toolbarButton.innerHTML =
     '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.6 1.3a1 1 0 0 1 1.4 0l2.7 2.7a1 1 0 0 1 0 1.4L8.2 11.9 4.1 7.8zM3.4 8.5l4.1 4.1-1.2 1.2H2.5a.5.5 0 0 1-.35-.85L3.4 11.7z"/><rect x="1" y="14.6" width="14" height="1.4" rx=".7"/></svg>';
-  toggle.addEventListener("click", () => {
+  toolbarButton.addEventListener("click", () => {
     if (panel.style.display === "block") {
       closePanel();
       return;
     }
-    renderPanel();
-    document.body.append(panel);
-    panel.style.display = "block";
+    openPanel();
   });
-  document.getElementById("toolbarViewerRight")?.prepend(toggle);
+  document.getElementById("toolbarViewerRight")?.prepend(toolbarButton);
   // Close the panel when clicking elsewhere or pressing Escape.
   document.addEventListener("mousedown", (event) => {
-    if (!panel.contains(event.target) && !toggle.contains(event.target)) closePanel();
+    if (!panel.contains(event.target) && !toolbarButton.contains(event.target) && !popup.contains(event.target)) {
+      closePanel();
+    }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePanel();
@@ -406,11 +503,13 @@ const start = async () => {
   document.body.append(recordButton, popup, panel);
   addToolbarButton();
 
-  const stored = await storage.local.get([RECORDED_WORDS_KEY, EMPHASIS_KEY]);
+  const stored = await storage.local.get([RECORDED_WORDS_KEY, EMPHASIS_KEY, POPUP_KEY]);
   await rule.load();
   setRecordedWords(stored[RECORDED_WORDS_KEY]);
   emphasis = normalizeEmphasis(stored[EMPHASIS_KEY]);
   applyEmphasis();
+  popupSettings = normalizePopup(stored[POPUP_KEY]);
+  applyPopupSettings();
   markAllPages();
 
   app.eventBus.on("textlayerrendered", ({ source }) => markPage(source.div));
@@ -426,6 +525,10 @@ const start = async () => {
     if (changes[EMPHASIS_KEY]) {
       emphasis = normalizeEmphasis(changes[EMPHASIS_KEY].newValue);
       applyEmphasis();
+    }
+    if (changes[POPUP_KEY]) {
+      popupSettings = normalizePopup(changes[POPUP_KEY].newValue);
+      applyPopupSettings();
     }
   });
 

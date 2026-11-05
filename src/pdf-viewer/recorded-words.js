@@ -16,6 +16,20 @@ export const EMPHASIS_STYLES = {
 
 export const DEFAULT_EMPHASIS = { style: "marker", color: "#ffc400", opacity: 40 };
 
+export const POPUP_KEY = "**** recorded word popup ****";
+
+export const POPUP_FONT_SIZES = { small: ["小", 12], medium: ["中", 13], large: ["大", 15], xlarge: ["特大", 17] };
+export const POPUP_WIDTHS = { narrow: ["狭い", 240], medium: ["標準", 300], wide: ["広い", 400] };
+export const POPUP_THEMES = { auto: "自動", light: "ライト", dark: "ダーク" };
+
+export const DEFAULT_POPUP = {
+  fontSize: "medium",
+  width: "medium",
+  theme: "auto",
+  showSource: true,
+  showActions: true,
+};
+
 const WORD = /^[a-z]+(?:['’][a-z]+)*$/;
 const TOKEN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const MAX_MEANING_LENGTH = 200;
@@ -36,6 +50,17 @@ export const normalizeEmphasis = (emphasis) => {
     style: style in EMPHASIS_STYLES ? style : DEFAULT_EMPHASIS.style,
     color: /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_EMPHASIS.color,
     opacity: Number.isFinite(opacity) ? Math.min(100, Math.max(10, opacity)) : DEFAULT_EMPHASIS.opacity,
+  };
+};
+
+export const normalizePopup = (settings) => {
+  const { fontSize, width, theme, showSource, showActions } = { ...DEFAULT_POPUP, ...settings };
+  return {
+    fontSize: fontSize in POPUP_FONT_SIZES ? fontSize : DEFAULT_POPUP.fontSize,
+    width: width in POPUP_WIDTHS ? width : DEFAULT_POPUP.width,
+    theme: theme in POPUP_THEMES ? theme : DEFAULT_POPUP.theme,
+    showSource: showSource !== false,
+    showActions: showActions !== false,
   };
 };
 

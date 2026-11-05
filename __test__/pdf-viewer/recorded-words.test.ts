@@ -7,6 +7,7 @@ import {
   formsOf,
   lookupMeaning,
   normalizeEmphasis,
+  normalizePopup,
   normalizeWord,
   summarizeDescription,
 } from "../../src/pdf-viewer/recorded-words";
@@ -82,5 +83,22 @@ test("looks up the dictionary first, recording the base form, then the suggestio
     head: "accretion",
     meaning: "",
     source: "",
+  });
+});
+
+test("keeps popup settings to the supported choices", () => {
+  expect(normalizePopup(undefined)).toEqual({
+    fontSize: "medium",
+    width: "medium",
+    theme: "auto",
+    showSource: true,
+    showActions: true,
+  });
+  expect(normalizePopup({ fontSize: "huge", width: "wide", theme: "dark", showActions: false })).toEqual({
+    fontSize: "medium",
+    width: "wide",
+    theme: "dark",
+    showSource: true,
+    showActions: false,
   });
 });
