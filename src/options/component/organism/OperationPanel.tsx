@@ -4,49 +4,32 @@
  * Licensed under MIT
  */
 
-import { useState } from "react";
 import { res } from "../../logic";
 import { Button } from "../atom/Button";
 
 type Props = {
+  dirty: boolean;
+  justSaved: boolean;
   disable: boolean;
-  trigger: (type: "save" | "factoryReset") => void;
+  onSave: () => void;
 };
 
-const style = {
-  backgroundColor: "#FFFFFF",
-  color: "#FF4500",
-  transition: "0.5s",
-};
-const style1 = { ...style, opacity: 0.0 };
-const style2 = { ...style, opacity: 1.0 };
-
+// Floats at the bottom of the page while there is something to save, or briefly after saving.
 export const OperationPanel: React.FC<Props> = (props) => {
-  const [mode, setMode] = useState<1 | 2>(1);
-
+  if (!props.dirty && !props.justSaved) {
+    return null;
+  }
   return (
-    <>
-      <div style={{ position: "sticky", top: 4, zIndex: 9999, opacity: 0.95 }}>
-        <Button
-          type="primary"
-          text={res.get("saveSettings")}
-          disabled={props.disable || mode === 2}
-          onClick={() => {
-            props.trigger("save");
-            setMode(2);
-            setTimeout(() => {
-              setMode(1);
-            }, 2000);
-          }}
-        />
-        <span style={mode === 1 ? style1 : style2}>{res.get("finishSaving")}</span>
-      </div>
+    <div className="save-bar" role="status">
+      <span className={`save-state ${props.dirty ? "dirty" : "saved"}`}>
+        {props.dirty ? res.get("unsavedChanges") : res.get("finishSaving")}
+      </span>
       <Button
-        type="revert"
-        text={res.get("defaultSettings")}
-        disabled={props.disable}
-        onClick={() => props.trigger("factoryReset")}
+        type="primary"
+        text={res.get("saveSettings")}
+        disabled={props.disable || !props.dirty}
+        onClick={props.onSave}
       />
-    </>
+    </div>
   );
 };

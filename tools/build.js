@@ -34,7 +34,6 @@ const copyStaticFiles = (browser, mode) => {
       filter: (f) => !f.startsWith("."),
     });
   }
-  fse.copyFileSync("node_modules/milligram/dist/milligram.min.css", `dist-${browser}/options/milligram.min.css`);
 };
 
 const build = (browser, mode) => {

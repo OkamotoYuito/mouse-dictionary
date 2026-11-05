@@ -15,20 +15,14 @@ type Props = {
 
 const CLASS = {
   primary: "",
-  cancel: "button-outline button-black",
-  revert: "button-outline button-small",
-  json: "button-black",
+  cancel: "button-danger",
+  revert: "button-secondary",
+  json: "button-secondary",
 };
 
 export const Button: React.FC<Props> = (props) => {
   return (
-    <button
-      type="button"
-      className={CLASS[props.type]}
-      style={{ marginRight: 5, cursor: "pointer" }}
-      disabled={props.disabled}
-      onClick={props.onClick}
-    >
+    <button type="button" className={CLASS[props.type]} disabled={props.disabled} onClick={props.onClick}>
       {props.text}
     </button>
   );

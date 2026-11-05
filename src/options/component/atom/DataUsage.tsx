@@ -32,20 +32,21 @@ export const DataUsage: React.FC<Props> = (props) => {
     updateSize();
   }, [props.byteSize]);
 
-  if (props.byteSize === undefined || props.byteSize === -1) {
-    return (
-      <div style={{ height: 24 }}>
-        <img src="img/loading.gif" width="16" height="16" style={{ verticalAlign: "middle" }} />
-      </div>
-    );
-  }
-
-  const sizeString = Math.floor(props.byteSize / 1024).toLocaleString();
-  const sizeInfo = res.get("dictDataUsage", { size: sizeString });
+  const loading = props.byteSize === undefined || props.byteSize === -1;
+  const size = loading ? "" : Math.floor((props.byteSize as number) / 1024).toLocaleString();
   return (
-    <div style={{ fontSize: "75%", cursor: "pointer", height: 24 }} onClick={() => props.onUpdate(-1)}>
-      {sizeInfo}
-    </div>
+    <button
+      type="button"
+      className="stat button-reset"
+      title={res.get("dictUsageDesc")}
+      onClick={() => props.onUpdate(-1)}
+    >
+      {loading ? (
+        <img src="img/loading.gif" width="16" height="16" alt="" />
+      ) : (
+        <span className="stat-value">{res.get("dictDataUsage", { size })}</span>
+      )}
+    </button>
   );
 };
 

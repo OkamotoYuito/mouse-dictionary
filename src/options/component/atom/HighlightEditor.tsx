@@ -16,11 +16,10 @@ type Props = {
 };
 
 const DEFAULT_STYLE = {
-  width: 800,
-  border: "1px solid #d1d1d1",
-  borderRadius: "3px",
+  width: "100%",
+  border: "1px solid #cdd5de",
+  borderRadius: "7px",
   fontSize: 13,
-  marginBottom: 20,
 };
 
 const WARNING_STYLE: React.CSSProperties = {

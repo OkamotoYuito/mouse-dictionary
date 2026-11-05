@@ -74,39 +74,40 @@ export const LoadDictionary: React.FC<Props> = (props) => {
   }, [file]);
 
   return (
-    <div>
-      <label>{res.get("dictDataEncoding")}</label>
-      <Select
-        ref={selectRef}
-        value={encoding}
-        options={ENCODINGS}
-        onChange={(value) => setEncoding(value as DictionaryFileEncoding)}
-      />
-      <label>{res.get("dictDataFormat")}</label>
-      <Select value={format} options={FORMATS} onChange={(value) => setFormat(value as DictionaryFileFormat)} />
-      <label>{res.get("readDictData")}</label>
-      <input type="file" onChange={(e) => setFile(e.target.files?.[0])} />
-      <br />
-      <Button
-        type="primary"
-        text={res.get("loadSelectedFile")}
-        onClick={() =>
-          props.trigger({
-            type: "load",
-            payload: { encoding, format, file },
-          })
-        }
-        disabled={props.busy}
-      />
-      <img
-        src="img/loading.gif"
-        width="32"
-        height="32"
-        style={{
-          verticalAlign: "middle",
-          display: props.busy ? "inline" : "none",
-        }}
-      />
-    </div>
+    <>
+      <div className="field">
+        <label htmlFor="dictFile">{res.get("readDictData")}</label>
+        <input id="dictFile" type="file" onChange={(e) => setFile(e.target.files?.[0])} />
+      </div>
+      <div className="grid-3">
+        <div className="field">
+          <span className="field-label">{res.get("dictDataFormat")}</span>
+          <Select value={format} options={FORMATS} onChange={(value) => setFormat(value as DictionaryFileFormat)} />
+        </div>
+        <div className="field">
+          <span className="field-label">{res.get("dictDataEncoding")}</span>
+          <Select
+            ref={selectRef}
+            value={encoding}
+            options={ENCODINGS}
+            onChange={(value) => setEncoding(value as DictionaryFileEncoding)}
+          />
+        </div>
+      </div>
+      <div className="button-row">
+        <Button
+          type="primary"
+          text={res.get("loadSelectedFile")}
+          onClick={() =>
+            props.trigger({
+              type: "load",
+              payload: { encoding, format, file },
+            })
+          }
+          disabled={props.busy || !file}
+        />
+        {props.busy && <img src="img/loading.gif" width="20" height="20" alt="" />}
+      </div>
+    </>
   );
 };

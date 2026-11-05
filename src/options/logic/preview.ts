@@ -25,6 +25,11 @@ export const usePreview = () => {
     refPreview.current?.setVisible(visible);
   }, []);
 
+  // Moves the preview window into a container on the page.
+  const attachPreview = useCallback((container: HTMLElement | null) => {
+    if (container && refPreview.current) container.appendChild(refPreview.current.element);
+  }, []);
+
   useEffect(() => {
     // cleanup
     return () => {
@@ -32,7 +37,7 @@ export const usePreview = () => {
     };
   }, []);
 
-  return { updatePreview, setPreviewVisible };
+  return { updatePreview, setPreviewVisible, attachPreview };
 };
 
 class Preview {
@@ -48,7 +53,7 @@ class Preview {
 
   constructor(settings: MouseDictionarySettings) {
     this.update = debounce(this.updateBody.bind(this), 64);
-    this.element = dom.create('<div style="position:absolute;top:10;left:0;z-index:-1;"></div>') as HTMLElement;
+    this.element = dom.create('<div class="preview-window"></div>') as HTMLElement;
     this.element.hidden = true;
     document.body.appendChild(this.element);
     this.refreshGenerator(settings);
@@ -111,6 +116,8 @@ class Preview {
 
     try {
       this.previewWindow = this.createWindow(settings);
+      // The real window is fixed to the viewport; the preview sits in the page flow instead.
+      dom.applyStyles(this.previewWindow.dialog, { position: "relative", left: "0", top: "0", right: "auto" });
       this.element.appendChild(this.previewWindow.dialog);
     } catch (e) {
       console.error(e);

@@ -174,10 +174,11 @@ export const WholeSettings: React.FC<Props> = (props) => {
   return (
     <div style={WRAPPER_DIV_STYLE}>
       <p>{res.get("aboutJsonEditor")}</p>
+      <div className="button-row">
+        <Button type="revert" text={res.get("closeJsonEditor")} onClick={() => close()} />
+        <Button type="primary" text={res.get("importJson")} onClick={() => updateAndClose(json)} />
+      </div>
       <div>
-        <Button type="cancel" text={res.get("closeJsonEditor")} onClick={() => close()} />
-        <Button type="json" text={res.get("importJson")} onClick={() => updateAndClose(json)} />
-
         <AceEditor
           mode="json"
           theme="solarized_light"
