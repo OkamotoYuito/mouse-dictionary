@@ -4,12 +4,15 @@
  * Licensed under MIT
  */
 
+import { americanize } from "./british";
+
+// Unifies spelling variants: the rule's own table first, then British spellings ("colour" -> "color").
 export default (spellingRule, words) => {
   let converted = false;
   const convertedWords = [];
   for (let j = 0; j < words.length; j++) {
     const word = words[j];
-    const convertedWord = spellingRule.get(word);
+    const convertedWord = spellingRule.get(word) ?? americanize(word);
     if (convertedWord) {
       converted = true;
       convertedWords.push(convertedWord);

@@ -4,6 +4,7 @@
  * Licensed under MIT
  */
 
+import { americanize } from "../main/core/rule/british";
 import template from "../main/lib/template";
 
 export const RECORDED_WORDS_KEY = "**** recorded words ****";
@@ -90,7 +91,14 @@ export const emphasisVariables = (emphasis) => {
 // keep only inflections and irregular forms ("traces" -> "trace", "ran" -> "run").
 const isInflectionOf = (token, base) => /(?:s|ed|ing|en|['’]s)$/.test(token) || !token.startsWith(base.slice(0, -1));
 
-export const formsOf = (word, doBase) => [word, ...doBase(word).filter((base) => isInflectionOf(word, base))];
+const inflectedForms = (word, doBase) => [word, ...doBase(word).filter((base) => isInflectionOf(word, base))];
+
+// Includes the American spelling, so "centre" and "center" match each other.
+export const formsOf = (word, doBase) => {
+  const american = americanize(word);
+  const forms = inflectedForms(word, doBase);
+  return american ? [...new Set([...forms, ...inflectedForms(american, doBase)])] : forms;
+};
 
 const POSSESSIVES = new Set(["my", "your", "his", "her", "its", "our", "their", "one's", "one’s"]);
 // "carry out" is also written "carry the tests out". Particles that are often prepositions
