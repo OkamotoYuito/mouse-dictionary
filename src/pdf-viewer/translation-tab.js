@@ -37,9 +37,13 @@ const FONTS = {
   yu: { label: "游ゴシック", stack: `"Yu Gothic UI", YuGothic, "Yu Gothic Medium", "Yu Gothic", ${FALLBACK}` },
   biz: { label: "BIZ UDPゴシック", stack: `"BIZ UDPGothic", "BIZ UDGothic", ${FALLBACK}` },
   system: { label: "システム", stack: `system-ui, -apple-system, ${FALLBACK}` },
-  mincho: {
-    label: "明朝",
+  notoSerif: {
+    label: "Noto Serif JP",
     stack: `"Noto Serif JP", "Noto Serif CJK JP", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, serif`,
+  },
+  mincho: {
+    label: "明朝（ヒラギノ・游）",
+    stack: `"Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif JP", "Noto Serif CJK JP", serif`,
   },
 };
 const LINES = {
