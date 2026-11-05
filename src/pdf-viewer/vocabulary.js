@@ -69,7 +69,8 @@ const STYLE = `
     border: 1.5px solid var(--md-recorded-line); border-radius: 4px; background: var(--md-recorded-fill-light);
   }
 
-  #mdRecordedPopup, #mdRecordButton, #mdEmphasisPanel { font-family: var(--md-ui-font); box-sizing: border-box; }
+  /* Not selectable, so that selecting a sentence never takes in their text (and sends it to be translated). */
+  #mdRecordedPopup, #mdRecordButton, #mdEmphasisPanel { font-family: var(--md-ui-font); box-sizing: border-box; user-select: none; }
   #mdRecordedPopup { position: fixed; display: none; z-index: 2147483647; padding-top: 6px; }
   #mdRecordedPopup .card {
     min-width: 180px; max-width: var(--md-popup-width, 300px); padding: 12px 14px 10px; color: var(--md-ui-fg); background: var(--md-ui-bg);
@@ -98,7 +99,7 @@ const STYLE = `
   #mdRecordedPopup textarea {
     display: block; box-sizing: border-box; width: 100%; min-width: 240px; margin-top: 6px; padding: 6px 8px;
     font: var(--md-popup-size, 13px) / 1.6 var(--md-ui-font); color: var(--md-ui-fg); background: var(--md-ui-hover);
-    border: 1.5px solid var(--md-ui-accent); border-radius: 8px; outline: none; resize: vertical;
+    border: 1.5px solid var(--md-ui-accent); border-radius: 8px; outline: none; resize: vertical; user-select: text;
   }
   #mdRecordedPopup .hint { flex: 1; font-size: 11px; color: var(--md-ui-muted); }
   #mdRecordedPopup button.primary { color: #fff; background: var(--md-ui-accent); }
@@ -702,8 +703,8 @@ const start = async () => {
   document.addEventListener("mousedown", (event) => {
     if (event.target === recordButton || popup.contains(event.target)) return;
     mouseIsDown = true;
-    // Clicking elsewhere while editing discards the edit.
-    if (editing) hidePopup();
+    // Selecting starts here: the popup gets out of the way (and clicking elsewhere discards an edit).
+    hidePopup();
   });
   document.addEventListener("mouseup", (event) => {
     mouseIsDown = false;
