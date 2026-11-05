@@ -21,6 +21,7 @@ const create = (tag, props = {}, children = []) => {
 
 const SIZE_KEY = "pdfTranslationSize";
 const HISTORY_OPEN_KEY = "pdfTranslationHistoryOpen";
+const POPUP_KEY = "pdfTranslationPopup";
 const SIZES = { small: { label: "小", px: 13 }, medium: { label: "中", px: 15 }, large: { label: "大", px: 17.5 } };
 
 const button = (textContent, onClick, className = "") => {
@@ -29,13 +30,16 @@ const button = (textContent, onClick, className = "") => {
   return element;
 };
 
-// onMakeNote({ quote, text, place }) puts a note; goTo(place) scrolls to a place in the PDF.
-export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
+// onMakeNote({ quote, text, place }) puts a note. onModeChange(popup) tells the viewer whether
+// translations of selections also pop up beside the text.
+export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () => {} }) => {
   const translate = createTranslateEngine();
   let key = null;
   let history = [];
   let current = null; // { source, place, translation, engine, status, kind }
   let requestId = 0;
+  let popupMode = false;
+  const listeners = new Set();
 
   const status = create("div", { className: "mdTrStatus", role: "status" });
   status.setAttribute("aria-live", "polite");
@@ -62,6 +66,20 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
   });
   const sizeSwitch = create("div", { className: "mdTrSize", role: "group" }, sizeButtons);
   sizeSwitch.setAttribute("aria-label", "文字サイズ");
+
+  const popupToggle = create("button", {
+    type: "button",
+    className: "mdTrPopupToggle",
+    textContent: "ポップアップ",
+    title: "選んだ文の横にも翻訳を出す（パネルを閉じていても訳します）",
+  });
+  popupToggle.addEventListener("click", () => setPopupMode(!popupMode));
+  const setPopupMode = (value, { remember = true } = {}) => {
+    popupMode = value;
+    popupToggle.setAttribute("aria-pressed", String(value));
+    if (remember) storage.local.set({ [POPUP_KEY]: value });
+    onModeChange(value);
+  };
   const retry = button("訳し直す", () => current && run(current.source, current.place, { force: true }));
   const copy = button("コピー", async () => {
     try {
@@ -78,7 +96,10 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
   });
   const actions = create("div", { className: "mdTrActions" }, [retry, copy, toNote]);
   const card = create("section", { className: "mdTrCurrent" }, [
-    create("div", { className: "mdTrHead" }, [sourceToggle, sizeSwitch]),
+    create("div", { className: "mdTrHead" }, [
+      sourceToggle,
+      create("div", { className: "mdTrTools" }, [popupToggle, sizeSwitch]),
+    ]),
     source,
     result,
     create("div", { className: "mdTrFoot" }, [status, actions]),
@@ -107,14 +128,17 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
 
   const setSize = (name) => {
     const size = SIZES[name] ? name : "medium";
-    element.style.setProperty("--md-tr-size", `${SIZES[size].px}px`);
+    // On the root, so the translation popup uses the same size.
+    document.documentElement.style.setProperty("--md-tr-size", `${SIZES[size].px}px`);
     for (const sizeButton of sizeButtons)
       sizeButton.setAttribute("aria-pressed", String(sizeButton.dataset.size === size));
   };
   setSize("medium");
-  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY]).then((stored) => {
+  setPopupMode(false, { remember: false });
+  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY]).then((stored) => {
     setSize(stored?.[SIZE_KEY]);
     historyBox.open = stored?.[HISTORY_OPEN_KEY] === true;
+    setPopupMode(stored?.[POPUP_KEY] === true, { remember: false });
   });
 
   const save = () => {
@@ -124,9 +148,17 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
     else storage.local.remove(key);
   };
 
+  // Every translation run has its own id, so a popup keeps to the sentence it was opened for.
+  const notify = () => {
+    if (!current) return;
+    const view = { ...current, statusText: statusText() };
+    for (const listener of listeners) listener(view);
+  };
+
   const show = (values) => {
-    current = { ...current, ...values };
+    current = { ...current, ...values, runId: requestId };
     render();
+    notify();
   };
 
   const run = async (text, place, { force = false } = {}) => {
@@ -225,6 +257,7 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
             textContent: [entry.place ? `p.${entry.place.page}` : "", entry.engine].filter(Boolean).join(" ・ "),
           }),
         ]);
+        // Shows that translation on top; the pages stay where they are.
         item.addEventListener("click", () => {
           requestId++;
           show({
@@ -234,7 +267,7 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
             engine: entry.engine,
             kind: "same",
           });
-          if (entry.place) goTo(entry.place);
+          element.scrollTo({ top: 0, behavior: "smooth" });
         });
         return item;
       }),
@@ -251,7 +284,17 @@ export const createTranslationTab = ({ onMakeNote, goTo, showToast }) => {
       current = null;
       render();
     },
-    translateSelection: (text, place) => run(text, place).catch((error) => console.error("Mouse Dictionary:", error)),
+    // Translates a sentence and returns the id of that run.
+    translateSelection(text, place) {
+      run(text, place).catch((error) => console.error("Mouse Dictionary:", error));
+      return requestId;
+    },
+    retranslate: () => current && run(current.source, current.place, { force: true }),
+    subscribe: (listener) => listeners.add(listener),
+    // Sends the current translation to the listeners again, e.g. to a popup opened just now.
+    notify,
+    isPopupMode: () => popupMode,
+    setPopupMode,
     render,
   };
 };

@@ -8,6 +8,7 @@
 // pages around while holding Space, or with the middle button), sticky notes, and a side panel on
 // the right with a translation tab and a notes tab. The look is in mouse-dictionary-workspace.css.
 
+import { renderTextWithMath } from "../main/core/math";
 import { readPdfSelection } from "../main/core/pdf-selection";
 import storage from "../main/lib/storage";
 import {
@@ -525,6 +526,8 @@ const readSelection = () => {
   const pageRect = target.div.getBoundingClientRect();
   return {
     selection,
+    rect,
+    div: target.div,
     text: (readPdfSelection(selection) ?? selection.toString()).replace(/\s+\n/g, "\n").trim(),
     place: {
       page: target.page,
@@ -798,9 +801,10 @@ const buildPanel = () => {
 
   translationTab = createTranslationTab({
     onMakeNote: ({ quote, text, place }) => addNote({ ...place, quote, text }, { focus: false }),
-    goTo,
     showToast,
+    onModeChange: (on) => on || closePopup(),
   });
+  translationTab.subscribe(updatePopup);
   tabPanes.dictionary = buildDictionaryPane();
   tabPanes.translation = create("div", { className: "mdTabPane" }, [translationTab.element]);
   tabPanes.notes = create("div", { className: "mdTabPane" }, [
@@ -875,14 +879,119 @@ const buildToolbar = () => {
 
 // ---- Translation ----
 
+const POPUP_WIDTH = 380;
+const POPUP_GAP = 14;
+
 const isSentence = (text) => (text.match(/[a-zA-Z]{2,}/g) ?? []).length >= 2;
 
-// Selecting a sentence in the pages translates it while the translation tab is showing.
+// The translation popup: beside the selected text, on its page, so it scrolls and zooms with it.
+let popup = null; // { element, runId, view, page }
+
+const closePopup = () => {
+  popup?.element.remove();
+  popup = null;
+};
+
+const updatePopup = (view) => {
+  if (!popup || view.runId !== popup.runId) return;
+  popup.view = view;
+  const { element } = popup;
+  element.querySelector(".mdTrPopupStatus").textContent = view.statusText;
+  element.classList.toggle("mdTrSimilar", view.kind === "similar" || view.kind === "similar-failed");
+  const body = element.querySelector(".mdTrPopupBody");
+  if (view.translation) renderTextWithMath(body, view.translation);
+  else body.textContent = "";
+  element.querySelector("[data-note]").hidden = !view.translation || !view.place;
+};
+
+// Right of the text if there's room in the view, else left of it, else under it.
+const popupPosition = (rect, width) => {
+  const view = container.getBoundingClientRect();
+  if (rect.right + POPUP_GAP + width <= view.right - 8) return { left: rect.right + POPUP_GAP, top: rect.top };
+  if (rect.left - POPUP_GAP - width >= view.left + 8) return { left: rect.left - POPUP_GAP - width, top: rect.top };
+  const left = Math.max(view.left + 8, Math.min(rect.left, view.right - width - 8));
+  return { left, top: rect.bottom + POPUP_GAP / 2 };
+};
+
+const popupButton = (textContent, title, onClick) => {
+  const element = create("button", { type: "button", textContent, title });
+  element.setAttribute("aria-label", title);
+  element.addEventListener("click", onClick);
+  return element;
+};
+
+// Dragging the header moves the popup about its page.
+const dragPopup = (event) => {
+  if (event.button !== 0 || event.target.closest("button") || !popup) return;
+  event.preventDefault();
+  const { element } = popup;
+  const page = element.parentElement?.parentElement;
+  if (!page) return;
+  const start = { x: event.clientX, y: event.clientY, left: element.offsetLeft, top: element.offsetTop };
+  const move = (moveEvent) => {
+    const rect = page.getBoundingClientRect();
+    element.style.left = `${((start.left + moveEvent.clientX - start.x) / rect.width) * 100}%`;
+    element.style.top = `${((start.top + moveEvent.clientY - start.y) / rect.height) * 100}%`;
+  };
+  const end = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+};
+
+const openPopup = (selected, runId) => {
+  closePopup();
+  const width = Math.min(POPUP_WIDTH, container.clientWidth - 24);
+  const { left, top } = popupPosition(selected.rect, width);
+  const pageRect = selected.div.getBoundingClientRect();
+
+  const toNote = popupButton("付箋にする", "原文を引用した付箋にする", () => {
+    const view = popup?.view;
+    if (!view?.translation || !view.place) return;
+    addNote({ ...view.place, quote: view.source, text: view.translation }, { focus: false });
+    closePopup();
+  });
+  toNote.dataset.note = "";
+  toNote.hidden = true;
+  const head = create("div", { className: "mdTrPopupHead" }, [
+    create("span", { className: "mdTrPopupStatus", role: "status" }),
+    toNote,
+    popupButton("パネル", "翻訳タブで開く", () => setPanelOpen(true, { tab: "translation" })),
+    popupButton("×", "閉じる", closePopup),
+  ]);
+  head.addEventListener("pointerdown", dragPopup);
+  const element = create("div", { className: "mdTrPopup", role: "dialog" }, [
+    head,
+    create("div", { className: "mdTrPopupBody", lang: "ja" }),
+  ]);
+  element.setAttribute("aria-label", "翻訳");
+  element.style.width = `${width}px`;
+  element.style.left = `${((left - pageRect.left) / pageRect.width) * 100}%`;
+  element.style.top = `${((top - pageRect.top) / pageRect.height) * 100}%`;
+  // Keep PDF.js, the dictionary and the notes away from clicks and selections in the popup.
+  element.addEventListener("mousedown", (event) => event.stopPropagation());
+  element.addEventListener("mouseup", (event) => event.stopPropagation());
+
+  popup = { element, runId, view: null, page: selected.place.page };
+  layerFor(selected.place.page).append(element);
+  attachLayers();
+};
+
+// Selecting a sentence in the pages translates it while the translation tab is showing, and
+// always in popup mode, where the translation also pops up beside the sentence.
 const translateSelectedText = () => {
+  const popupMode = translationTab.isPopupMode();
+  if (!popupMode && !(isPanelOpen() && activeTab === "translation")) return;
   const selected = readSelection();
   if (!selected || !isSentence(selected.text)) return;
   if (!selected.selection.anchorNode?.parentElement?.closest(".textLayer")) return;
-  translationTab.translateSelection(selected.text, selected.place);
+  const runId = translationTab.translateSelection(selected.text, selected.place);
+  if (popupMode) {
+    openPopup(selected, runId);
+    translationTab.notify();
+  }
 };
 
 // ---- Document ----
@@ -926,13 +1035,16 @@ const start = async () => {
       if (event.key === "Escape" && state.placing) {
         event.stopImmediatePropagation();
         setPlacing(false);
+      } else if (event.key === "Escape" && popup && !isTyping(event.target)) {
+        event.stopImmediatePropagation();
+        closePopup();
       }
     },
     true,
   );
   window.addEventListener("pagehide", () => saveTimer && save());
   container.addEventListener("mouseup", (event) => {
-    if (event.button !== 0 || state.placing || !isPanelOpen() || activeTab !== "translation") return;
+    if (event.button !== 0 || state.placing) return;
     // Wait for the selection to settle.
     setTimeout(translateSelectedText, 0);
   });
