@@ -7,9 +7,11 @@
 // Runs inside the bundled PDF.js viewer. Words recorded with their meanings are emphasized
 // wherever they appear, and hovering one shows the meaning. Nothing is written into the PDF.
 
+import config from "../main/core/config";
 import rule from "../main/core/rule";
 import storage from "../main/lib/storage";
 import {
+  createColorizer,
   createResolver,
   EMPHASIS_KEY,
   EMPHASIS_STYLES,
@@ -73,6 +75,10 @@ const STYLE = `
   #mdRecordedPopup .word { display: flex; align-items: center; gap: 7px; font-size: calc(var(--md-popup-size, 13px) + 2px); font-weight: 650; letter-spacing: .01em; }
   #mdRecordedPopup .word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--md-recorded-line); }
   #mdRecordedPopup .meaning { margin-top: 6px; font-size: var(--md-popup-size, 13px); line-height: 1.6; white-space: pre-wrap; }
+  .mdUi[data-theme="dark"] .meaning span { filter: brightness(1.8) saturate(.8); }
+  @media (prefers-color-scheme: dark) {
+    .mdUi:not([data-theme="light"]) .meaning span { filter: brightness(1.8) saturate(.8); }
+  }
   #mdRecordedPopup .meaning.empty { color: var(--md-ui-muted); }
   #mdRecordedPopup .footer {
     display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--md-ui-line);
@@ -84,6 +90,14 @@ const STYLE = `
   }
   #mdRecordedPopup button:hover { background: var(--md-ui-hover); }
   #mdRecordedPopup button.danger { color: #ff453a; }
+  #mdRecordedPopup textarea {
+    display: block; box-sizing: border-box; width: 100%; min-width: 240px; margin-top: 6px; padding: 6px 8px;
+    font: var(--md-popup-size, 13px) / 1.6 var(--md-ui-font); color: var(--md-ui-fg); background: var(--md-ui-hover);
+    border: 1.5px solid var(--md-ui-accent); border-radius: 8px; outline: none; resize: vertical;
+  }
+  #mdRecordedPopup .hint { flex: 1; font-size: 11px; color: var(--md-ui-muted); }
+  #mdRecordedPopup button.primary { color: #fff; background: var(--md-ui-accent); }
+  #mdRecordedPopup button.primary:hover { filter: brightness(1.1); background: var(--md-ui-accent); }
   #mdRecordedPopup button.settings { display: flex; padding: 4px; margin-left: auto; color: var(--md-ui-muted); }
   #mdRecordedPopup button.settings svg { width: 14px; height: 14px; fill: currentColor; }
 
@@ -153,6 +167,7 @@ let emphasis = normalizeEmphasis();
 const create = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 
 let popupSettings = normalizePopup();
+let colorize = createColorizer();
 
 const recordButton = create("button", {
   id: "mdRecordButton",
@@ -270,6 +285,9 @@ const showButtonLater = () => {
 };
 
 let popupWord = "";
+let popupRect = null;
+// While the meaning is being edited, the popup stays open until it is saved or cancelled.
+let editing = false;
 
 const button = (textContent, className = "") => create("button", { type: "button", textContent, className });
 
@@ -277,14 +295,10 @@ const button = (textContent, className = "") => create("button", { type: "button
 const showPopup = (word, rect) => {
   if (popupWord === word && popup.style.display === "block") return;
   popupWord = word;
+  popupRect = rect;
   const { meaning, source } = recordedWords[word];
   const edit = button("訳を編集");
-  edit.addEventListener("click", () => {
-    const edited = prompt(`「${word}」の訳`, meaning);
-    if (edited === null) return;
-    saveWords({ ...recordedWords, [word]: { ...recordedWords[word], meaning: edited.trim(), source: "自分で編集" } });
-    hidePopup();
-  });
+  edit.addEventListener("click", () => startEditing(word));
   const remove = button("記録を消す", "danger");
   remove.addEventListener("click", () => {
     const { [word]: _, ...rest } = recordedWords;
@@ -305,10 +319,9 @@ const showPopup = (word, rect) => {
   const card = create("div", { className: "card" });
   card.append(
     create("div", { className: "word", textContent: word }),
-    create("div", {
-      className: meaning ? "meaning" : "meaning empty",
-      textContent: meaning || "訳が見つかりませんでした",
-    }),
+    meaning
+      ? create("div", { className: "meaning", innerHTML: colorize(meaning) })
+      : create("div", { className: "meaning empty", textContent: "訳が見つかりませんでした" }),
     footer,
   );
   popup.replaceChildren(card);
@@ -325,8 +338,55 @@ const showPopup = (word, rect) => {
 };
 
 const hidePopup = () => {
+  editing = false;
   popup.style.display = "none";
   popupWord = "";
+};
+
+const hidePopupUnlessEditing = () => {
+  if (!editing) hidePopup();
+};
+
+const redrawPopup = (word) => {
+  editing = false;
+  popupWord = "";
+  if (recordedWords[word]) showPopup(word, popupRect);
+};
+
+// Swap the meaning for a text box. Enter saves (Shift+Enter adds a line), Escape cancels.
+const startEditing = (word) => {
+  editing = true;
+  const textarea = create("textarea", { value: recordedWords[word].meaning, rows: 3 });
+  const save = async () => {
+    const meaning = textarea.value.trim();
+    await saveWords({ ...recordedWords, [word]: { ...recordedWords[word], meaning, source: "自分で編集" } });
+    recordedWords = { ...recordedWords, [word]: { ...recordedWords[word], meaning, source: "自分で編集" } };
+    redrawPopup(word);
+  };
+  textarea.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+    if (event.isComposing) return;
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      save();
+    } else if (event.key === "Escape") {
+      redrawPopup(word);
+    }
+  });
+  const cancel = button("キャンセル");
+  cancel.addEventListener("click", () => redrawPopup(word));
+  const saveButton = button("保存", "primary");
+  saveButton.addEventListener("click", save);
+  const footer = create("div", { className: "footer" });
+  footer.append(
+    create("span", { className: "hint", textContent: "Enterで保存・Shift+Enterで改行" }),
+    cancel,
+    saveButton,
+  );
+  popup.querySelector(".meaning").replaceWith(textarea);
+  popup.querySelector(".footer").replaceWith(footer);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 };
 
 // The boxes do not take pointer events so that the text stays selectable; hit-test them instead.
@@ -340,7 +400,7 @@ const findBoxAt = (event) => {
 };
 
 const onMouseMove = (event) => {
-  if (mouseIsDown) return;
+  if (mouseIsDown || editing) return;
   if (popup.contains(event.target)) return;
   const box = findBoxAt(event);
   if (box && recordedWords[box.dataset.word]) {
@@ -505,6 +565,8 @@ const start = async () => {
 
   const stored = await storage.local.get([RECORDED_WORDS_KEY, EMPHASIS_KEY, POPUP_KEY]);
   await rule.load();
+  // Use the same coloring rules as the dictionary window.
+  colorize = createColorizer((await config.loadSettings()).replaceRules);
   setRecordedWords(stored[RECORDED_WORDS_KEY]);
   emphasis = normalizeEmphasis(stored[EMPHASIS_KEY]);
   applyEmphasis();
@@ -539,7 +601,10 @@ const start = async () => {
     recordWord(selectedWord).catch((error) => console.error("Mouse Dictionary:", error));
   });
   document.addEventListener("mousedown", (event) => {
-    if (event.target !== recordButton && !popup.contains(event.target)) mouseIsDown = true;
+    if (event.target === recordButton || popup.contains(event.target)) return;
+    mouseIsDown = true;
+    // Clicking elsewhere while editing discards the edit.
+    if (editing) hidePopup();
   });
   document.addEventListener("mouseup", (event) => {
     mouseIsDown = false;
@@ -548,8 +613,8 @@ const start = async () => {
   });
   document.addEventListener("selectionchange", showButtonLater);
   document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseleave", hidePopup);
-  document.getElementById("viewerContainer")?.addEventListener("scroll", hidePopup, { passive: true });
+  document.addEventListener("mouseleave", hidePopupUnlessEditing);
+  document.getElementById("viewerContainer")?.addEventListener("scroll", hidePopupUnlessEditing, { passive: true });
 };
 
 start().catch((error) => console.error("Mouse Dictionary:", error));

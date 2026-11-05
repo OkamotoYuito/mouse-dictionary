@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import {
+  createColorizer,
   createResolver,
   DEFAULT_EMPHASIS,
   emphasisVariables,
@@ -101,4 +102,16 @@ test("keeps popup settings to the supported choices", () => {
     showSource: true,
     showActions: false,
   });
+});
+
+test("colors meanings with the dialog's replace rules after escaping them", () => {
+  const colorize = createColorizer([
+    { search: "(〈.+?〉)", replace: '<span style="color:#008000;{{cssReset}}">$1</span>' },
+    { search: "\\n", replace: "<br/>" },
+    { search: "([", replace: "broken" },
+  ]);
+  expect(colorize("〈U〉超過\n<b>余分</b>")).toBe(
+    '<span style="color:#008000;">〈U〉</span>超過<br/>&lt;b&gt;余分&lt;/b&gt;',
+  );
+  expect(createColorizer()("a & b")).toBe("a &amp; b");
 });

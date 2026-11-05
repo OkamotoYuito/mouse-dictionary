@@ -4,6 +4,8 @@
  * Licensed under MIT
  */
 
+import template from "../main/lib/template";
+
 export const RECORDED_WORDS_KEY = "**** recorded words ****";
 export const EMPHASIS_KEY = "**** recorded word emphasis ****";
 
@@ -129,4 +131,21 @@ export const lookupMeaning = async (word, { getForms, getDescriptions, suggest }
     return { head: word, meaning: suggestion.meaning, source: suggestion.source ?? "" };
   }
   return { head: word, meaning: "", source: "" };
+};
+
+const escapeHtml = (text) =>
+  text.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+// Colors a meaning with the dialog's replace rules (part of speech, notes, ...), as Mouse Dictionary does.
+// The meaning may come from the web, so it is escaped before the rules add their markup.
+export const createColorizer = (replaceRules = []) => {
+  const rules = replaceRules.flatMap(({ search, replace }) => {
+    try {
+      return search ? [{ search: new RegExp(search, "g"), replace: template.render(replace, { cssReset: "" }) }] : [];
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  });
+  return (meaning) => rules.reduce((html, { search, replace }) => html.replace(search, replace), escapeHtml(meaning));
 };
