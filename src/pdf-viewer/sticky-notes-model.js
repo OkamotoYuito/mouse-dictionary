@@ -59,6 +59,20 @@ export const normalizeDocument = (stored) => {
   return { title: typeof stored?.title === "string" ? stored.title : "", notes };
 };
 
+const sortKeys = (value) => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortKeys(value[key])]),
+  );
+};
+
+// Compares what was stored regardless of key order: chrome.storage hands objects back with
+// their keys sorted, so a plain JSON.stringify would see our own write as someone else's.
+export const storedSignature = (value) => JSON.stringify(sortKeys(value ?? null));
+
 // Reading order: by page, then top to bottom, then left to right.
 export const sortNotes = (notes) => [...notes].sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
 

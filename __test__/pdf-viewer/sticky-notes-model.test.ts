@@ -6,6 +6,7 @@ import {
   notesKey,
   removeNote,
   sortNotes,
+  storedSignature,
   toMarkdown,
   updateNote,
 } from "../../src/pdf-viewer/sticky-notes-model";
@@ -71,4 +72,12 @@ test("notes export as Markdown with quotes", () => {
   expect(toMarkdown("Paper", notes)).toBe(
     "# Paper\n\n## p.1\n> line one\n> line two\n\n比較する\n\n## p.3\n（メモなし）\n",
   );
+});
+
+test("our own write is recognized after chrome.storage sorts its keys", () => {
+  const written = { title: "Paper", notes: [{ id: "a", text: "x", page: 1 }] };
+  const returned = { notes: [{ id: "a", page: 1, text: "x" }], title: "Paper" };
+  expect(storedSignature(returned)).toBe(storedSignature(written));
+  expect(storedSignature({ ...returned, title: "Other" })).not.toBe(storedSignature(written));
+  expect(storedSignature(undefined)).toBe("null");
 });

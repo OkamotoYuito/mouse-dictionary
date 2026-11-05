@@ -18,6 +18,7 @@ import {
   notesKey,
   removeNote,
   sortNotes,
+  storedSignature,
   toMarkdown,
   updateNote,
 } from "./sticky-notes-model";
@@ -190,7 +191,7 @@ const save = () => {
   if (!state.key) return;
   state.title = document.title || state.title;
   const value = { title: state.title, notes: state.notes };
-  state.lastSaved = JSON.stringify(value);
+  state.lastSaved = storedSignature(value);
   if (state.notes.length === 0) {
     storage.local.remove(state.key);
   } else {
@@ -350,10 +351,19 @@ const renderNote = (note) => {
   return element;
 };
 
+// The note being typed in is left as it is, so its text box keeps the focus and the caret.
+const editingNoteId = () => document.activeElement?.closest?.(".mdNote")?.dataset.id ?? null;
+
 const renderAllNotes = () => {
-  for (const element of noteElements.values()) element.remove();
-  noteElements.clear();
-  for (const note of state.notes) renderNote(note);
+  const editing = editingNoteId();
+  for (const [id, element] of noteElements) {
+    if (id === editing) continue;
+    element.remove();
+    noteElements.delete(id);
+  }
+  for (const note of state.notes) {
+    if (note.id !== editing) renderNote(note);
+  }
 };
 
 const addNote = (values) => {
@@ -560,7 +570,7 @@ const loadDocument = async () => {
   const stored = await storage.local.get([state.key]);
   const documentNotes = normalizeDocument(stored?.[state.key]);
   state.title = documentNotes.title;
-  state.lastSaved = JSON.stringify(stored?.[state.key] ?? null);
+  state.lastSaved = storedSignature(stored?.[state.key]);
   for (const layer of layers.values()) layer.remove();
   layers.clear();
   setNotes(documentNotes.notes, { persist: false });
@@ -611,9 +621,12 @@ const start = async () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !state.key || !changes[state.key]) return;
     const value = changes[state.key].newValue;
-    if (JSON.stringify(value ?? null) === state.lastSaved || (value === undefined && state.notes.length === 0)) return;
-    state.lastSaved = JSON.stringify(value ?? null);
-    setNotes(normalizeDocument(value).notes, { persist: false });
+    const signature = storedSignature(value);
+    if (signature === state.lastSaved || (value === undefined && state.notes.length === 0)) return;
+    state.lastSaved = signature;
+    const editing = noteById(editingNoteId());
+    const notes = normalizeDocument(value).notes.map((note) => (note.id === editing?.id ? editing : note));
+    setNotes(notes, { persist: false });
     renderAllNotes();
   });
 
