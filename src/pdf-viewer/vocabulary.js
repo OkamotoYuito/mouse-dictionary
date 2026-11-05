@@ -23,41 +23,99 @@ import {
 } from "./recorded-words";
 
 const BUTTON_DELAY = 600;
-const POPUP_HIDE_DELAY = 300;
+const SWATCHES = ["#ffc400", "#ff7a59", "#ff5fa2", "#8b6cff", "#3b9eff", "#2fbf71"];
 
 // The record button, popup and panel share the top z-index with Mouse Dictionary's own window,
 // so they are moved to the end of the body when shown to stay in front of it.
 const STYLE = `
+  :root {
+    --md-ui-bg: rgba(255, 255, 255, .96); --md-ui-fg: #1d1d1f; --md-ui-muted: #6e6e73; --md-ui-line: rgba(0, 0, 0, .08);
+    --md-ui-hover: rgba(0, 0, 0, .05); --md-ui-accent: #0a84ff; --md-ui-strong-bg: #1d1d1f; --md-ui-strong-fg: #fff;
+    --md-ui-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 28px rgba(0, 0, 0, .16);
+    --md-ui-font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --md-ui-bg: rgba(44, 44, 46, .96); --md-ui-fg: #f5f5f7; --md-ui-muted: #a1a1a6; --md-ui-line: rgba(255, 255, 255, .1);
+      --md-ui-hover: rgba(255, 255, 255, .08); --md-ui-strong-bg: #f5f5f7; --md-ui-strong-fg: #1d1d1f;
+      --md-ui-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .5);
+    }
+  }
+  @keyframes mdPopIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
   .mdRecordedLayer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
-  .mdRecordedLayer > div { position: absolute; box-sizing: border-box; }
-  .mdRecordedLayer[data-style="marker"] > div { background: var(--md-recorded-fill); mix-blend-mode: multiply; }
-  .mdRecordedLayer[data-style="underline"] > div { border-bottom: 2px solid var(--md-recorded-line); }
-  .mdRecordedLayer[data-style="wavy"] > div {
+  .mdRecordedLayer > div, .mdStyleSample > i { position: absolute; box-sizing: border-box; }
+  [data-style="marker"] > div, [data-style="marker"] > i { background: var(--md-recorded-fill); mix-blend-mode: multiply; border-radius: 2px; }
+  [data-style="underline"] > div, [data-style="underline"] > i { border-bottom: 2px solid var(--md-recorded-line); }
+  [data-style="wavy"] > div, [data-style="wavy"] > i {
     background: linear-gradient(135deg, transparent 35%, var(--md-recorded-line) 35% 60%, transparent 60%) 0 100% / 6px 4px repeat-x,
       linear-gradient(45deg, transparent 35%, var(--md-recorded-line) 35% 60%, transparent 60%) 3px 100% / 6px 4px repeat-x;
   }
-  .mdRecordedLayer[data-style="box"] > div {
-    border: 1.5px solid var(--md-recorded-line); border-radius: 3px; background: var(--md-recorded-fill-light);
+  [data-style="box"] > div, [data-style="box"] > i {
+    border: 1.5px solid var(--md-recorded-line); border-radius: 4px; background: var(--md-recorded-fill-light);
   }
-  #mdRecordedPopup {
-    position: fixed; display: none; z-index: 2147483647; max-width: 280px; padding: 6px 10px; font: 13px/1.5 sans-serif;
-    background: #fffdf5; color: #222; border: 1px solid #e0b040; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,.25);
+
+  #mdRecordedPopup, #mdRecordButton, #mdEmphasisPanel { font-family: var(--md-ui-font); box-sizing: border-box; }
+  #mdRecordedPopup { position: fixed; display: none; z-index: 2147483647; padding-top: 6px; }
+  #mdRecordedPopup .card {
+    min-width: 180px; max-width: 300px; padding: 12px 14px 10px; color: var(--md-ui-fg); background: var(--md-ui-bg);
+    border: 1px solid var(--md-ui-line); border-radius: 12px; box-shadow: var(--md-ui-shadow);
+    backdrop-filter: blur(16px); animation: mdPopIn .12s ease-out;
   }
-  #mdRecordedPopup .word { font-weight: bold; color: #a05a00; }
-  #mdRecordedPopup .meaning { white-space: pre-wrap; }
-  #mdRecordedPopup .source { color: #888; font-size: 11px; }
-  #mdRecordedPopup .actions { display: flex; gap: 6px; margin-top: 4px; }
-  #mdRecordedPopup button, #mdRecordButton {
-    padding: 2px 8px; font-size: 12px; color: #222; background: #fff; border: 1px solid #aaa; border-radius: 5px; cursor: pointer;
+  #mdRecordedPopup .word { display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+  #mdRecordedPopup .word::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--md-recorded-line); }
+  #mdRecordedPopup .meaning { margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+  #mdRecordedPopup .meaning.empty { color: var(--md-ui-muted); }
+  #mdRecordedPopup .footer {
+    display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--md-ui-line);
   }
-  #mdRecordButton { position: fixed; display: none; z-index: 2147483647; padding: 4px 8px; font-size: 13px; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  #mdRecordedPopup .source { flex: 1; font-size: 11px; color: var(--md-ui-muted); }
+  #mdRecordedPopup button {
+    padding: 3px 8px; font: 500 12px var(--md-ui-font); color: var(--md-ui-accent); background: none; border: 0;
+    border-radius: 6px; cursor: pointer;
+  }
+  #mdRecordedPopup button:hover { background: var(--md-ui-hover); }
+  #mdRecordedPopup button.danger { color: #ff453a; }
+
+  #mdRecordButton {
+    position: fixed; display: none; z-index: 2147483647; padding: 6px 12px; font-size: 12.5px; font-weight: 600;
+    color: var(--md-ui-strong-fg); background: var(--md-ui-strong-bg); border: 0; border-radius: 999px; cursor: pointer;
+    box-shadow: var(--md-ui-shadow); animation: mdPopIn .12s ease-out;
+  }
+  #mdRecordButton:hover { filter: brightness(1.15); }
+  #mdRecordButton:disabled { cursor: progress; opacity: .8; }
+
   #mdEmphasisPanel {
-    position: fixed; display: none; right: 8px; top: 40px; z-index: 2147483647; padding: 8px 12px; font: 13px sans-serif;
-    background: #fff; color: #222; border: 1px solid #aaa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    position: fixed; display: none; right: 10px; top: 42px; z-index: 2147483647; width: 268px; padding: 14px;
+    color: var(--md-ui-fg); background: var(--md-ui-bg); border: 1px solid var(--md-ui-line); border-radius: 14px;
+    box-shadow: var(--md-ui-shadow); backdrop-filter: blur(16px); animation: mdPopIn .12s ease-out; font-size: 13px;
   }
-  #mdEmphasisPanel label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
-  #mdEmphasisPanel .count { color: #666; margin-top: 6px; }
-  #mdEmphasisToggle { width: auto; padding: 0 6px; font-size: 13px; color: var(--main-color, inherit); }
+  #mdEmphasisPanel h2 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+  #mdEmphasisPanel .label { margin: 12px 0 6px; font-size: 11px; font-weight: 600; color: var(--md-ui-muted); }
+  #mdEmphasisPanel .styles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  #mdEmphasisPanel .styles button {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; font: 11px var(--md-ui-font);
+    color: var(--md-ui-fg); background: var(--md-ui-hover); border: 1.5px solid transparent; border-radius: 9px; cursor: pointer;
+  }
+  #mdEmphasisPanel .styles button[aria-pressed="true"] { border-color: var(--md-ui-accent); background: none; }
+  .mdStyleSample { position: relative; padding: 0 3px; font: 600 14px Georgia, serif; color: var(--md-ui-fg); }
+  .mdStyleSample > i { inset: 1px 0; mix-blend-mode: normal !important; }
+  .mdStyleSample > span { position: relative; }
+  #mdEmphasisPanel .colors { display: flex; align-items: center; gap: 8px; }
+  #mdEmphasisPanel .colors button, #mdEmphasisPanel .colors label {
+    position: relative; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  #mdEmphasisPanel .colors [aria-pressed="true"] { outline: 2px solid var(--md-ui-accent); outline-offset: 2px; }
+  #mdEmphasisPanel .colors label { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
+  #mdEmphasisPanel .colors input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  #mdEmphasisPanel .strength { display: flex; align-items: center; gap: 10px; }
+  #mdEmphasisPanel .strength input { flex: 1; accent-color: var(--md-ui-accent); }
+  #mdEmphasisPanel .strength output { width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--md-ui-muted); }
+  #mdEmphasisPanel .count { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--md-ui-line); color: var(--md-ui-muted); font-size: 12px; }
+  #mdEmphasisToggle { display: flex; align-items: center; justify-content: center; }
+  #mdEmphasisToggle::before { display: none; }
+  #mdEmphasisToggle svg { width: 16px; height: 16px; fill: var(--toolbar-icon-bg-color, currentColor); }
 `;
 
 let recordedWords = {};
@@ -172,36 +230,50 @@ const showButtonLater = () => {
   }, BUTTON_DELAY);
 };
 
-let hideTimer;
 let popupWord = "";
 
+const button = (textContent, className = "") => create("button", { type: "button", textContent, className });
+
+// The popup touches the word (its top padding bridges the gap), so the cursor can move into it.
 const showPopup = (word, rect) => {
-  clearTimeout(hideTimer);
   if (popupWord === word && popup.style.display === "block") return;
   popupWord = word;
   const { meaning, source } = recordedWords[word];
-  popup.replaceChildren(
-    create("div", { className: "word", textContent: word }),
-    create("div", { className: "meaning", textContent: meaning || "訳が見つかりませんでした" }),
-    ...(source ? [create("div", { className: "source", textContent: source })] : []),
-    create("div", { className: "actions" }),
-  );
-  const edit = create("button", { type: "button", textContent: "訳を編集" });
+  const edit = button("訳を編集");
   edit.addEventListener("click", () => {
     const edited = prompt(`「${word}」の訳`, meaning);
     if (edited === null) return;
     saveWords({ ...recordedWords, [word]: { ...recordedWords[word], meaning: edited.trim(), source: "自分で編集" } });
     hidePopup();
   });
-  const remove = create("button", { type: "button", textContent: "記録を消す" });
+  const remove = button("記録を消す", "danger");
   remove.addEventListener("click", () => {
     const { [word]: _, ...rest } = recordedWords;
     saveWords(rest);
     hidePopup();
   });
-  popup.lastChild.append(edit, remove);
+  const footer = create("div", { className: "footer" });
+  footer.append(create("span", { className: "source", textContent: source }), edit, remove);
+  const card = create("div", { className: "card" });
+  card.append(
+    create("div", { className: "word", textContent: word }),
+    create("div", {
+      className: meaning ? "meaning" : "meaning empty",
+      textContent: meaning || "訳が見つかりませんでした",
+    }),
+    footer,
+  );
+  popup.replaceChildren(card);
   document.body.append(popup);
-  Object.assign(popup.style, { display: "block", left: `${rect.left}px`, top: `${rect.bottom + 4}px` });
+  Object.assign(popup.style, { display: "block", left: `${rect.left}px`, top: `${rect.bottom}px` });
+  // Keep it inside the window.
+  const { right, bottom, height } = popup.getBoundingClientRect();
+  if (right > innerWidth - 8) popup.style.left = `${Math.max(8, rect.left - (right - innerWidth) - 8)}px`;
+  if (bottom > innerHeight - 8) {
+    Object.assign(popup.style, { top: `${rect.top - height}px`, paddingTop: "0", paddingBottom: "6px" });
+  } else {
+    Object.assign(popup.style, { paddingTop: "", paddingBottom: "" });
+  }
 };
 
 const hidePopup = () => {
@@ -221,44 +293,80 @@ const findBoxAt = (event) => {
 
 const onMouseMove = (event) => {
   if (mouseIsDown) return;
-  if (popup.contains(event.target)) {
-    clearTimeout(hideTimer);
-    return;
-  }
+  if (popup.contains(event.target)) return;
   const box = findBoxAt(event);
   if (box && recordedWords[box.dataset.word]) {
     showPopup(box.dataset.word, box.getBoundingClientRect());
   } else if (popup.style.display === "block") {
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(hidePopup, POPUP_HIDE_DELAY);
+    hidePopup();
   }
 };
 
+const updateEmphasis = (change) => {
+  emphasis = normalizeEmphasis({ ...emphasis, ...change });
+  applyEmphasis();
+  storage.local.set({ [EMPHASIS_KEY]: emphasis });
+  renderPanel();
+};
+
+const styleSample = (style) => {
+  const sample = create("span", { className: "mdStyleSample" });
+  sample.dataset.style = style;
+  sample.append(create("i"), create("span", { textContent: "Aa" }));
+  return sample;
+};
+
 const renderPanel = () => {
-  panel.replaceChildren();
-  const styleSelect = create("select", { name: "style" });
-  for (const [value, label] of Object.entries(EMPHASIS_STYLES))
-    styleSelect.append(create("option", { value, textContent: label }));
-  const inputs = [
-    ["表示", styleSelect],
-    ["色", create("input", { name: "color", type: "color" })],
-    ["濃さ", create("input", { name: "opacity", type: "range", min: 10, max: 100, step: 5 })],
-  ];
-  for (const [label, input] of inputs) {
-    input.value = emphasis[input.name];
-    input.addEventListener("input", () => {
-      const value = input.name === "opacity" ? Number(input.value) : input.value;
-      emphasis = normalizeEmphasis({ ...emphasis, [input.name]: value });
-      applyEmphasis();
-      storage.local.set({ [EMPHASIS_KEY]: emphasis });
-    });
-    const row = create("label", { textContent: label });
-    row.append(input);
-    panel.append(row);
+  const styles = create("div", { className: "styles" });
+  for (const [style, label] of Object.entries(EMPHASIS_STYLES)) {
+    const option = button("");
+    option.setAttribute("aria-pressed", String(emphasis.style === style));
+    option.append(styleSample(style), label);
+    option.addEventListener("click", () => updateEmphasis({ style }));
+    styles.append(option);
   }
-  panel.append(
-    create("div", { className: "count", textContent: `記録した単語: ${Object.keys(recordedWords).length}語` }),
+
+  const colors = create("div", { className: "colors" });
+  for (const color of SWATCHES) {
+    const swatch = button("");
+    swatch.title = color;
+    swatch.style.background = color;
+    swatch.setAttribute("aria-pressed", String(emphasis.color === color));
+    swatch.addEventListener("click", () => updateEmphasis({ color }));
+    colors.append(swatch);
+  }
+  const custom = create("label", { title: "ほかの色" });
+  custom.setAttribute("aria-pressed", String(!SWATCHES.includes(emphasis.color)));
+  const picker = create("input", { type: "color", value: emphasis.color });
+  picker.addEventListener("change", () => updateEmphasis({ color: picker.value }));
+  custom.append(picker);
+  colors.append(custom);
+
+  const strength = create("div", { className: "strength" });
+  const slider = create("input", { type: "range", min: 10, max: 100, step: 5, value: emphasis.opacity });
+  const value = create("output", { textContent: `${emphasis.opacity}%` });
+  slider.addEventListener("input", () => {
+    value.textContent = `${slider.value}%`;
+    emphasis = normalizeEmphasis({ ...emphasis, opacity: Number(slider.value) });
+    applyEmphasis();
+  });
+  slider.addEventListener("change", () => updateEmphasis({ opacity: Number(slider.value) }));
+  strength.append(slider, value);
+
+  panel.replaceChildren(
+    create("h2", { textContent: "記録した単語の強調" }),
+    create("div", { className: "label", textContent: "スタイル" }),
+    styles,
+    create("div", { className: "label", textContent: "色" }),
+    colors,
+    create("div", { className: "label", textContent: "濃さ" }),
+    strength,
+    create("div", { className: "count", textContent: `記録した単語 ${Object.keys(recordedWords).length}語` }),
   );
+};
+
+const closePanel = () => {
+  panel.style.display = "none";
 };
 
 const addToolbarButton = () => {
@@ -267,17 +375,26 @@ const addToolbarButton = () => {
     className: "toolbarButton",
     type: "button",
     title: "記録した単語の強調",
-    textContent: "強調",
   });
+  toggle.innerHTML =
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.6 1.3a1 1 0 0 1 1.4 0l2.7 2.7a1 1 0 0 1 0 1.4L8.2 11.9 4.1 7.8zM3.4 8.5l4.1 4.1-1.2 1.2H2.5a.5.5 0 0 1-.35-.85L3.4 11.7z"/><rect x="1" y="14.6" width="14" height="1.4" rx=".7"/></svg>';
   toggle.addEventListener("click", () => {
-    const opening = panel.style.display !== "block";
-    if (opening) {
-      renderPanel();
-      document.body.append(panel);
+    if (panel.style.display === "block") {
+      closePanel();
+      return;
     }
-    panel.style.display = opening ? "block" : "none";
+    renderPanel();
+    document.body.append(panel);
+    panel.style.display = "block";
   });
   document.getElementById("toolbarViewerRight")?.prepend(toggle);
+  // Close the panel when clicking elsewhere or pressing Escape.
+  document.addEventListener("mousedown", (event) => {
+    if (!panel.contains(event.target) && !toggle.contains(event.target)) closePanel();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closePanel();
+  });
 };
 
 const start = async () => {
@@ -328,6 +445,8 @@ const start = async () => {
   });
   document.addEventListener("selectionchange", showButtonLater);
   document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseleave", hidePopup);
+  document.getElementById("viewerContainer")?.addEventListener("scroll", hidePopup, { passive: true });
 };
 
 start().catch((error) => console.error("Mouse Dictionary:", error));
