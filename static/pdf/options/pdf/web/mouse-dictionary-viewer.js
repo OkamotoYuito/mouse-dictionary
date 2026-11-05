@@ -47,6 +47,8 @@ const loadMouseDictionary = () => loadScript("main.js");
 
 // Emphasizes recorded words and shows their meanings on hover.
 loadScript("options/pdf/web/vocabulary.js").catch((error) => console.error("Mouse Dictionary:", error));
+// Free scrolling, sticky notes and the notes panel.
+loadScript("options/pdf/web/workspace.js").catch((error) => console.error("Mouse Dictionary:", error));
 
 const getPdfData = (id) =>
   new Promise((resolve, reject) => {

@@ -1,0 +1,625 @@
+/*
+ * Mouse Dictionary (https://github.com/wtetsu/mouse-dictionary/)
+ * Copyright 2018-present wtetsu
+ * Licensed under MIT
+ *
+ * Mouse Dictionary's layout over the PDF.js viewer, after desktop readers such as Preview,
+ * Acrobat and Zotero: a quiet toolbar, pages floating on a gray desk, the page list on the
+ * left and the sticky notes on the right.
+ */
+
+:root {
+  --toolbar-height: 46px;
+  --toolbar-horizontal-padding: 10px;
+  --toolbar-vertical-padding: 7px;
+  --sidebar-width: 220px;
+  --icon-size: 17px;
+
+  --md-chrome-bg: #f6f6f7;
+  --md-chrome-line: rgb(0 0 0 / 0.09);
+  --md-desk-bg: #e4e4e7;
+  --md-fg: #1d1d1f;
+  --md-muted: #6e6e73;
+  --md-hover: rgb(0 0 0 / 0.06);
+  --md-active: rgb(0 0 0 / 0.1);
+  --md-accent: #0a84ff;
+  --md-field-bg: #fff;
+  --md-card-bg: #fff;
+  --md-page-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 2px 6px rgb(0 0 0 / 0.08), 0 12px 32px rgb(0 0 0 / 0.07);
+  --md-notes-width: 300px;
+  --md-font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+
+  --body-bg-color: var(--md-desk-bg);
+  --toolbar-bg-color: var(--md-chrome-bg);
+  --toolbar-box-shadow: 0 1px 0 var(--md-chrome-line);
+  --toolbar-icon-opacity: 0.78;
+  --sidebar-toolbar-bg-color: var(--md-chrome-bg);
+  --toolbarSidebar-box-shadow: 0 1px 0 var(--md-chrome-line);
+  --button-hover-color: var(--md-hover);
+  --toggled-btn-bg-color: var(--md-active);
+  --toggled-hover-active-btn-color: var(--md-active);
+  --field-bg-color: var(--md-field-bg);
+  --field-border-color: rgb(0 0 0 / 0.12);
+  --dropdown-btn-bg-color: transparent;
+  --separator-color: var(--md-chrome-line);
+  --thumbnail-hover-color: var(--md-hover);
+  --thumbnail-selected-color: rgb(10 132 255 / 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-chrome-bg: #252528;
+    --md-chrome-line: rgb(255 255 255 / 0.08);
+    --md-desk-bg: #161618;
+    --md-fg: #f2f2f4;
+    --md-muted: #a1a1a6;
+    --md-hover: rgb(255 255 255 / 0.08);
+    --md-active: rgb(255 255 255 / 0.14);
+    --md-field-bg: #1c1c1e;
+    --md-card-bg: #2c2c2e;
+    --md-page-shadow: 0 0 0 1px rgb(0 0 0 / 0.4), 0 4px 18px rgb(0 0 0 / 0.5);
+
+    --body-bg-color: var(--md-desk-bg);
+    --toolbar-bg-color: var(--md-chrome-bg);
+    --sidebar-toolbar-bg-color: var(--md-chrome-bg);
+    --field-bg-color: var(--md-field-bg);
+    --field-border-color: rgb(255 255 255 / 0.14);
+    --dropdown-btn-bg-color: transparent;
+  }
+}
+
+/* ---- Pages: continuous, with air around them ---- */
+
+.pdfViewer {
+  --page-margin: 18px auto;
+  --page-border: none;
+  --spreadHorizontalWrapped-margin-LR: 9px;
+  padding-block: 6px 40vh;
+}
+
+.pdfViewer .page {
+  box-shadow: var(--md-page-shadow);
+  border-radius: 2px;
+}
+
+.pdfViewer.scrollHorizontal,
+.pdfViewer .spread {
+  padding-block-end: 0;
+}
+
+#viewerContainer {
+  scroll-behavior: auto;
+}
+
+#viewerContainer.mdPanReady,
+#viewerContainer.mdPanReady * {
+  cursor: grab !important;
+}
+
+#viewerContainer.mdPanning,
+#viewerContainer.mdPanning * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* ---- Toolbar ---- */
+
+#toolbarContainer {
+  font-family: var(--md-font);
+}
+
+#toolbarContainer .toolbarButton,
+#toolbarSidebar .toolbarButton {
+  border-radius: 7px;
+  transition: background-color 0.12s ease;
+}
+
+#toolbarContainer .toolbarButton:is(:hover, :focus-visible),
+#toolbarSidebar .toolbarButton:is(:hover, :focus-visible) {
+  background-color: var(--md-hover);
+}
+
+#toolbarContainer .splitToolbarButtonSeparator,
+#toolbarContainer .verticalToolbarSeparator {
+  display: none;
+}
+
+#toolbarViewerLeft,
+#toolbarViewerRight,
+#toolbarViewerMiddle {
+  gap: 2px;
+}
+
+#toolbarContainer .toolbarField {
+  border-radius: 7px;
+  border: 1px solid var(--field-border-color);
+  background-color: var(--field-bg-color);
+  font-family: var(--md-font);
+}
+
+#pageNumber {
+  text-align: center;
+}
+
+#numPages {
+  color: var(--md-muted);
+  font-family: var(--md-font);
+}
+
+#scaleSelectContainer {
+  border-radius: 7px;
+}
+
+#scaleSelectContainer:hover {
+  background-color: var(--md-hover);
+}
+
+#scaleSelect {
+  font-family: var(--md-font);
+}
+
+.doorHanger,
+.doorHangerRight,
+#secondaryToolbar {
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 10px 30px rgb(0 0 0 / 0.18);
+}
+
+/* ---- Left sidebar (pages / outline) ---- */
+
+#sidebarContainer {
+  border-inline-end: 1px solid var(--md-chrome-line);
+}
+
+#sidebarContent {
+  background-color: var(--md-chrome-bg);
+  box-shadow: none;
+}
+
+#thumbnailView {
+  padding-top: 14px;
+}
+
+.thumbnail .thumbnailImage,
+#thumbnailView > a > .thumbnail {
+  border-radius: 4px;
+}
+
+/* ---- Our toolbar buttons ---- */
+
+.mdToolbarDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 5px 6px;
+  background: var(--md-chrome-line);
+  flex: none;
+}
+
+#mdNotesAddButton::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 1.5h11a1 1 0 0 1 1 1v7.3a1 1 0 0 1-.3.7l-3.7 3.7a1 1 0 0 1-.7.3H2.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1zm.5 1.5v10h6v-3.5A1.5 1.5 0 0 1 10.5 8H13V3zm7.5 6.5v2.8l2.8-2.8z'/%3E%3Cpath d='M7.25 4.5h1.5V6h1.5v1.5h-1.5V9h-1.5V7.5h-1.5V6h1.5z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 1.5h11a1 1 0 0 1 1 1v7.3a1 1 0 0 1-.3.7l-3.7 3.7a1 1 0 0 1-.7.3H2.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1zm.5 1.5v10h6v-3.5A1.5 1.5 0 0 1 10.5 8H13V3zm7.5 6.5v2.8l2.8-2.8z'/%3E%3Cpath d='M7.25 4.5h1.5V6h1.5v1.5h-1.5V9h-1.5V7.5h-1.5V6h1.5z'/%3E%3C/svg%3E");
+}
+
+#mdNotesPanelButton::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 1.5h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1zM3 3v10h6.5V3zm8 0v10h2V3z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 1.5h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1zM3 3v10h6.5V3zm8 0v10h2V3z'/%3E%3C/svg%3E");
+}
+
+#mdNotesAddButton.toggled,
+#mdNotesPanelButton.toggled {
+  background-color: rgb(10 132 255 / 0.16);
+}
+
+#mdNotesAddButton.toggled::before,
+#mdNotesPanelButton.toggled::before {
+  background-color: var(--md-accent);
+  opacity: 1;
+}
+
+#mdNotesCount {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--md-accent);
+  color: #fff;
+  font: 600 9px/14px var(--md-font);
+  text-align: center;
+  pointer-events: none;
+}
+
+#mdNotesCount:empty {
+  display: none;
+}
+
+/* ---- Right panel: the notes of this PDF ---- */
+
+#mdNotesPanel {
+  position: absolute;
+  top: var(--toolbar-height);
+  bottom: 0;
+  inset-inline-end: 0;
+  width: var(--md-notes-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--md-chrome-bg);
+  border-inline-start: 1px solid var(--md-chrome-line);
+  color: var(--md-fg);
+  font: 13px/1.5 var(--md-font);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform 0.2s ease,
+    visibility 0s linear 0.2s;
+  z-index: 1;
+}
+
+#outerContainer.mdNotesOpen #mdNotesPanel {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.2s ease;
+}
+
+#viewerContainer:not(.pdfPresentationMode) {
+  transition-property: inset-inline-start, inset-inline-end;
+}
+
+#outerContainer.mdNotesOpen #viewerContainer:not(.pdfPresentationMode) {
+  inset-inline-end: var(--md-notes-width);
+}
+
+/* Too narrow to read beside the panel: let it cover the pages instead. */
+@media all and (max-width: 720px) {
+  #outerContainer.mdNotesOpen #viewerContainer:not(.pdfPresentationMode) {
+    inset-inline-end: 0;
+  }
+  #mdNotesPanel {
+    width: min(var(--md-notes-width), 85vw);
+    box-shadow: -8px 0 30px rgb(0 0 0 / 0.25);
+  }
+}
+
+.mdPanelHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px 8px;
+}
+
+.mdPanelHead h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mdPanelHead button,
+.mdPanelEmpty button {
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--md-accent);
+  font: 500 12px var(--md-font);
+  cursor: pointer;
+}
+
+.mdPanelHead button:hover,
+.mdPanelEmpty button:hover {
+  background: var(--md-hover);
+}
+
+.mdPanelSearch {
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--field-border-color);
+  border-radius: 8px;
+  background: var(--md-field-bg);
+  color: var(--md-fg);
+  font: 13px var(--md-font);
+  outline: none;
+}
+
+.mdPanelSearch:focus {
+  border-color: var(--md-accent);
+  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.2);
+}
+
+.mdPanelList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 16px;
+}
+
+.mdPanelPage {
+  margin: 10px 4px 4px;
+  color: var(--md-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mdPanelItem {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 8px 10px 8px 12px;
+  border: 0;
+  border-inline-start: 4px solid var(--md-note-edge);
+  border-radius: 8px;
+  background: var(--md-card-bg);
+  box-shadow: 0 0 0 1px var(--md-chrome-line);
+  color: var(--md-fg);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mdPanelItem:hover {
+  box-shadow:
+    0 0 0 1px var(--md-chrome-line),
+    0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+.mdPanelItem.mdCurrent {
+  box-shadow: 0 0 0 2px var(--md-accent);
+}
+
+.mdPanelQuote {
+  display: -webkit-box;
+  margin-bottom: 3px;
+  overflow: hidden;
+  color: var(--md-muted);
+  font-size: 12px;
+  font-style: italic;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mdPanelText {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.mdPanelText.mdEmptyText {
+  color: var(--md-muted);
+}
+
+.mdPanelEmpty {
+  margin: 30px 18px;
+  color: var(--md-muted);
+  text-align: center;
+}
+
+.mdPanelEmpty p {
+  margin: 0 0 8px;
+}
+
+.mdPanelToast {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--md-fg);
+  color: var(--md-chrome-bg);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.mdPanelToast.mdShown {
+  opacity: 1;
+}
+
+/* ---- Notes on the pages ---- */
+
+.mdNoteLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+#viewerContainer.mdPlacing .page,
+#viewerContainer.mdPlacing .page * {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M3 2h18v13l-6 7H3z' fill='%23fff3a6' stroke='%23b8932a'/%3E%3Cpath d='M15 22v-7h6' fill='%23e8c94a' stroke='%23b8932a'/%3E%3C/svg%3E")
+      3 2,
+    crosshair !important;
+}
+
+#viewerContainer.mdPlacing .textLayer {
+  pointer-events: none;
+}
+
+.mdNote {
+  --md-note-paper: #fff3a6;
+  --md-note-edge: #e8c94a;
+  position: absolute;
+  pointer-events: auto;
+  font: 13px/1.5 var(--md-font);
+  color: #1d1d1f;
+}
+
+.mdNoteIcon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--md-note-edge);
+  border-radius: 3px 3px 9px 3px;
+  background:
+    linear-gradient(135deg, transparent 0 calc(100% - 9px), var(--md-note-edge) calc(100% - 9px)) no-repeat,
+    var(--md-note-paper);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  cursor: grab;
+  transform: translate(-3px, -3px);
+}
+
+.mdNoteIcon:hover {
+  transform: translate(-3px, -4px);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.25);
+}
+
+.mdNote.mdOpen .mdNoteIcon {
+  display: none;
+}
+
+.mdNoteCard {
+  display: none;
+  width: 230px;
+  border-radius: 4px 4px 4px 4px;
+  background: var(--md-note-paper);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.06),
+    0 2px 4px rgb(0 0 0 / 0.1),
+    0 10px 24px rgb(0 0 0 / 0.16);
+  transform: rotate(-0.4deg);
+  animation: mdNoteIn 0.14s ease-out;
+}
+
+.mdNote.mdOpen .mdNoteCard {
+  display: block;
+}
+
+.mdNote.mdFocused {
+  z-index: 1;
+}
+
+.mdNote.mdFocused .mdNoteCard {
+  transform: none;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 4px 8px rgb(0 0 0 / 0.12),
+    0 16px 36px rgb(0 0 0 / 0.2);
+}
+
+@keyframes mdNoteIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.mdNoteHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--md-note-edge) 45%, var(--md-note-paper));
+  cursor: grab;
+  user-select: none;
+}
+
+.mdNoteHead:active {
+  cursor: grabbing;
+}
+
+.mdNotePage {
+  flex: 1;
+  color: rgb(0 0 0 / 0.55);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mdNoteSwatch {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.18);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.mdNoteSwatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 0.55);
+}
+
+.mdNoteTool {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgb(0 0 0 / 0.55);
+  font: 600 13px/1 var(--md-font);
+  cursor: pointer;
+}
+
+.mdNoteTool:hover {
+  background: rgb(0 0 0 / 0.08);
+  color: rgb(0 0 0 / 0.85);
+}
+
+.mdNoteQuote {
+  margin: 8px 10px 0;
+  padding-left: 7px;
+  border-left: 2px solid var(--md-note-edge);
+  color: rgb(0 0 0 / 0.6);
+  font-size: 12px;
+  font-style: italic;
+  white-space: pre-wrap;
+  max-height: 5.5em;
+  overflow: auto;
+}
+
+.mdNoteText {
+  display: block;
+  width: 100%;
+  min-height: 70px;
+  max-height: 320px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: none;
+  outline: none;
+  field-sizing: content;
+}
+
+.mdNoteText::placeholder {
+  color: rgb(0 0 0 / 0.38);
+}
+
+.mdNote.mdFlash .mdNoteCard,
+.mdNote.mdFlash .mdNoteIcon {
+  animation: mdNoteFlash 0.9s ease-out;
+}
+
+@keyframes mdNoteFlash {
+  0%,
+  60% {
+    outline: 3px solid var(--md-accent);
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 3px solid transparent;
+    outline-offset: 6px;
+  }
+}
+
+@media print {
+  .mdNoteLayer,
+  #mdNotesPanel {
+    display: none !important;
+  }
+}

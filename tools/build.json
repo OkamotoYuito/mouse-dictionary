@@ -8,6 +8,7 @@
     "src/main/start.js": "main.js",
     "src/options/app.tsx": "options/options.js",
     "src/background/background.js": "background.js",
-    "src/pdf-viewer/vocabulary.js": "options/pdf/web/vocabulary.js"
+    "src/pdf-viewer/vocabulary.js": "options/pdf/web/vocabulary.js",
+    "src/pdf-viewer/workspace.js": "options/pdf/web/workspace.js"
   }
 }
