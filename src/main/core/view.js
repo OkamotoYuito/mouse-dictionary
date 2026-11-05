@@ -245,7 +245,11 @@ const create = (settings) => {
       status.textContent = "読み込めませんでした";
     }
   };
-  form.addEventListener("mousedown", (event) => event.stopPropagation());
+  // Controls keep their own clicks; anywhere else in the form (the translation, the labels, the
+  // gaps) the window can be dragged around like the rest of it.
+  form.addEventListener("mousedown", (event) => {
+    if (event.target.closest?.("button, input, textarea, select, a, [contenteditable]")) event.stopPropagation();
+  });
   const openForm = (head) => {
     fields.hidden = false;
     word.value = head;

@@ -193,7 +193,7 @@ export default class Draggable {
       newRange.left = document.documentElement.clientWidth - this.mainElement.clientWidth - JUMP_SPACE;
     }
     if (edgeState & edge.TOP) {
-      newRange.top = JUMP_SPACE;
+      newRange.top = utils.getTopInset() + JUMP_SPACE;
     } else if (edgeState & edge.BOTTOM) {
       newRange.top = window.innerHeight - this.mainElement.clientHeight - JUMP_SPACE;
     }

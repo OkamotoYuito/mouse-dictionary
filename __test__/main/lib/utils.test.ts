@@ -143,3 +143,16 @@ test("getSelection function test", () => {
   setWindowGetSelection(() => "    aaa\nbbb\rccc   ");
   expect(utils.getSelection()).toEqual("aaa bbb ccc");
 });
+
+test("keepBelowInset moves the window under a toolbar and keeps it in the window", () => {
+  setWindowInnerSize(1024, 800);
+  expect(utils.keepBelowInset({ left: 10 }, 300, 46)).toEqual({ left: 10, top: 51 });
+  expect(utils.keepBelowInset({ left: 10, top: 100 }, 300, 46)).toEqual({ left: 10, top: 100 });
+  expect(utils.keepBelowInset({ top: 5, height: 790 }, 0, 46)).toEqual({ top: 51, height: 744 });
+  expect(utils.keepBelowInset({ left: 10 }, 900, 46)).toEqual({ left: 10, top: 51, height: 744 });
+  expect(utils.keepBelowInset({ left: 10 }, 300, 0)).toEqual({ left: 10 });
+});
+
+test("getTopInset is zero outside the PDF viewer", () => {
+  expect(utils.getTopInset()).toBe(0);
+});

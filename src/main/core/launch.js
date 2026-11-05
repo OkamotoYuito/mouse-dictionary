@@ -135,7 +135,12 @@ const initialize = (userSettings, storedPosition) => {
     document.body.appendChild(area.dialog);
   }
 
-  const newStyles = decideInitialStyles(userSettings, storedPosition, area.dialog.clientWidth);
+  const newStyles = decideInitialStyles(
+    userSettings,
+    storedPosition,
+    area.dialog.clientWidth,
+    area.dialog.offsetHeight,
+  );
   dom.applyStyles(area.dialog, newStyles);
 
   // Async
@@ -170,13 +175,14 @@ const createShadowRoot = (dialog) => {
   return shadowHost;
 };
 
-const decideInitialStyles = (userSettings, storedPosition, dialogWidth) => {
+const decideInitialStyles = (userSettings, storedPosition, dialogWidth, dialogHeight) => {
   let newPosition;
   if (userSettings.initialPosition === "keep") {
     newPosition = utils.optimizeInitialPosition(storedPosition);
   } else {
     newPosition = getInitialPosition(userSettings.initialPosition, dialogWidth);
   }
+  newPosition = utils.keepBelowInset(newPosition, dialogHeight);
   const positionStyles = utils.convertToStyles(newPosition);
   const newStyles = Object.assign(positionStyles, userSettings.normalDialogStyles);
   return newStyles;
