@@ -68,6 +68,13 @@
   }
 }
 
+/* Only the pages scroll. The notes panel waits just past the right edge while closed, and must
+   not give the whole viewer a second scrollbar. */
+html,
+body {
+  overflow: clip;
+}
+
 /* ---- Pages: continuous, with air around them ---- */
 
 .pdfViewer {
