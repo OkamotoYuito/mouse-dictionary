@@ -37,6 +37,8 @@ const FONTS = {
   yu: { label: "游ゴシック", stack: `"Yu Gothic UI", YuGothic, "Yu Gothic Medium", "Yu Gothic", ${FALLBACK}` },
   biz: { label: "BIZ UDPゴシック", stack: `"BIZ UDPGothic", "BIZ UDGothic", ${FALLBACK}` },
   system: { label: "システム", stack: `system-ui, -apple-system, ${FALLBACK}` },
+  // The browser's own serif face (Times and Hiragino Mincho on a Mac, unless set otherwise in Chrome).
+  serif: { label: "Serif（ブラウザ標準）", stack: "serif" },
   notoSerif: {
     label: "Noto Serif JP",
     stack: `"Noto Serif JP", "Noto Serif CJK JP", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, serif`,
