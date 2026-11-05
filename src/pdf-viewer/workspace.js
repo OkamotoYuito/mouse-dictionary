@@ -11,6 +11,7 @@
 import { renderTextWithMath } from "../main/core/math";
 import { readPdfSelection } from "../main/core/pdf-selection";
 import storage from "../main/lib/storage";
+import { popupPosition } from "./popup-position";
 import {
   createNote,
   filterNotes,
@@ -904,15 +905,6 @@ const updatePopup = (view) => {
   element.querySelector("[data-note]").hidden = !view.translation || !view.place;
 };
 
-// Right of the text if there's room in the view, else left of it, else under it.
-const popupPosition = (rect, width) => {
-  const view = container.getBoundingClientRect();
-  if (rect.right + POPUP_GAP + width <= view.right - 8) return { left: rect.right + POPUP_GAP, top: rect.top };
-  if (rect.left - POPUP_GAP - width >= view.left + 8) return { left: rect.left - POPUP_GAP - width, top: rect.top };
-  const left = Math.max(view.left + 8, Math.min(rect.left, view.right - width - 8));
-  return { left, top: rect.bottom + POPUP_GAP / 2 };
-};
-
 const popupButton = (textContent, title, onClick) => {
   const element = create("button", { type: "button", textContent, title });
   element.setAttribute("aria-label", title);
@@ -944,7 +936,13 @@ const dragPopup = (event) => {
 const openPopup = (selected, runId) => {
   closePopup();
   const width = Math.min(POPUP_WIDTH, container.clientWidth - 24);
-  const { left, top } = popupPosition(selected.rect, width);
+  const { left, top, above } = popupPosition({
+    rect: selected.rect,
+    view: container.getBoundingClientRect(),
+    width,
+    mode: translationTab.popupPlace(),
+    gap: POPUP_GAP,
+  });
   const pageRect = selected.div.getBoundingClientRect();
 
   const toNote = popupButton("付箋にする", "原文を引用した付箋にする", () => {
@@ -967,6 +965,8 @@ const openPopup = (selected, runId) => {
     create("div", { className: "mdTrPopupBody", lang: "ja" }),
   ]);
   element.setAttribute("aria-label", "翻訳");
+  // Above the text, the popup hangs from its bottom edge, so it grows upward as the text comes in.
+  element.classList.toggle("mdAbove", above);
   element.style.width = `${width}px`;
   element.style.left = `${((left - pageRect.left) / pageRect.width) * 100}%`;
   element.style.top = `${((top - pageRect.top) / pageRect.height) * 100}%`;

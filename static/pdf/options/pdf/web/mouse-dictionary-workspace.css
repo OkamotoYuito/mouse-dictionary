@@ -478,10 +478,39 @@ body.mdSideResizing #mdSidePanel {
   color: var(--md-fg);
 }
 
-.mdTrTools {
+/* Popup and text-size settings, above the translation. */
+.mdTrBar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  margin: 0 0 10px;
+}
+
+.mdTrBar .mdTrSize {
+  margin-inline-start: auto;
+}
+
+.mdTrPositionRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--md-muted);
+  font: 600 11px var(--md-font);
+}
+
+.mdTrPositionRow[hidden] {
+  display: none;
+}
+
+.mdTrPositionSelect {
+  max-width: 150px;
+  padding: 2px 4px;
+  border: 1px solid var(--md-chrome-line);
+  border-radius: 6px;
+  background: var(--md-field-bg);
+  color: var(--md-fg);
+  font: 500 11.5px var(--md-font);
 }
 
 .mdTrPopupToggle {
@@ -725,6 +754,18 @@ body.mdSideResizing #mdSidePanel {
   font: 13px/1.5 var(--md-font);
   pointer-events: auto;
   animation: mdNoteIn 0.14s ease-out;
+}
+
+.mdTrPopup.mdAbove {
+  transform: translateY(-100%);
+  animation-name: mdPopupAboveIn;
+}
+
+@keyframes mdPopupAboveIn {
+  from {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.96);
+  }
 }
 
 .mdTrPopupHead {

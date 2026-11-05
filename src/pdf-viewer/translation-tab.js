@@ -11,6 +11,7 @@
 import { renderTextWithMath } from "../main/core/math";
 import { createTranslateEngine, engineLabel } from "../main/core/translate-engine";
 import storage from "../main/lib/storage";
+import { DEFAULT_POPUP_POSITION, POPUP_POSITIONS } from "./popup-position";
 import { addToHistory, findInHistory, historyKey, normalizeHistory } from "./translation-history";
 
 const create = (tag, props = {}, children = []) => {
@@ -22,6 +23,7 @@ const create = (tag, props = {}, children = []) => {
 const SIZE_KEY = "pdfTranslationSize";
 const HISTORY_OPEN_KEY = "pdfTranslationHistoryOpen";
 const POPUP_KEY = "pdfTranslationPopup";
+const POPUP_POSITION_KEY = "pdfTranslationPopupPosition";
 const SIZES = { small: { label: "小", px: 13 }, medium: { label: "中", px: 15 }, large: { label: "大", px: 17.5 } };
 
 const button = (textContent, onClick, className = "") => {
@@ -39,6 +41,7 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
   let current = null; // { source, place, translation, engine, status, kind }
   let requestId = 0;
   let popupMode = false;
+  let popupPlace = DEFAULT_POPUP_POSITION;
   const listeners = new Set();
 
   const status = create("div", { className: "mdTrStatus", role: "status" });
@@ -74,8 +77,28 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     title: "選んだ文の横にも翻訳を出す（パネルを閉じていても訳します）",
   });
   popupToggle.addEventListener("click", () => setPopupMode(!popupMode));
+  // Where the popup goes, shown while popups are on.
+  const positionSelect = create(
+    "select",
+    { className: "mdTrPositionSelect" },
+    Object.entries(POPUP_POSITIONS).map(([value, label]) => create("option", { value, textContent: label })),
+  );
+  positionSelect.addEventListener("change", () => {
+    popupPlace = positionSelect.value;
+    storage.local.set({ [POPUP_POSITION_KEY]: popupPlace });
+  });
+  const positionRow = create("label", { className: "mdTrPositionRow" }, [
+    create("span", { textContent: "位置" }),
+    positionSelect,
+  ]);
+  const setPopupPlace = (value) => {
+    popupPlace = POPUP_POSITIONS[value] ? value : DEFAULT_POPUP_POSITION;
+    positionSelect.value = popupPlace;
+  };
+
   const setPopupMode = (value, { remember = true } = {}) => {
     popupMode = value;
+    positionRow.hidden = !value;
     popupToggle.setAttribute("aria-pressed", String(value));
     if (remember) storage.local.set({ [POPUP_KEY]: value });
     onModeChange(value);
@@ -96,10 +119,7 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
   });
   const actions = create("div", { className: "mdTrActions" }, [retry, copy, toNote]);
   const card = create("section", { className: "mdTrCurrent" }, [
-    create("div", { className: "mdTrHead" }, [
-      sourceToggle,
-      create("div", { className: "mdTrTools" }, [popupToggle, sizeSwitch]),
-    ]),
+    create("div", { className: "mdTrHead" }, [sourceToggle]),
     source,
     result,
     create("div", { className: "mdTrFoot" }, [status, actions]),
@@ -124,7 +144,9 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     create("p", { textContent: "本文の英文を選ぶと、ここに翻訳が出ます。" }),
     create("p", { textContent: "一度訳した文はこのPDFの履歴に残り、同じ文を選ぶと履歴からすぐに出します。" }),
   ]);
-  const element = create("div", { className: "mdTrTab" }, [card, empty, historyBox]);
+  // Always in view, also before the first translation.
+  const bar = create("div", { className: "mdTrBar" }, [popupToggle, positionRow, sizeSwitch]);
+  const element = create("div", { className: "mdTrTab" }, [bar, card, empty, historyBox]);
 
   const setSize = (name) => {
     const size = SIZES[name] ? name : "medium";
@@ -135,7 +157,9 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
   };
   setSize("medium");
   setPopupMode(false, { remember: false });
-  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY]).then((stored) => {
+  setPopupPlace(DEFAULT_POPUP_POSITION);
+  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY, POPUP_POSITION_KEY]).then((stored) => {
+    setPopupPlace(stored?.[POPUP_POSITION_KEY]);
     setSize(stored?.[SIZE_KEY]);
     historyBox.open = stored?.[HISTORY_OPEN_KEY] === true;
     setPopupMode(stored?.[POPUP_KEY] === true, { remember: false });
@@ -294,6 +318,7 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     // Sends the current translation to the listeners again, e.g. to a popup opened just now.
     notify,
     isPopupMode: () => popupMode,
+    popupPlace: () => popupPlace,
     setPopupMode,
     render,
   };
