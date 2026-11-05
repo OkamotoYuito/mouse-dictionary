@@ -13,6 +13,7 @@ import { createTranslateEngine, engineLabel } from "../main/core/translate-engin
 import storage from "../main/lib/storage";
 import { DEFAULT_POPUP_POSITION, POPUP_POSITIONS } from "./popup-position";
 import { addToHistory, findInHistory, historyKey, normalizeHistory } from "./translation-history";
+import { applyStyle, DEFAULT_STYLE, normalizeStyle, STYLE_KEYS } from "./translation-style";
 
 const create = (tag, props = {}, children = []) => {
   const element = Object.assign(document.createElement(tag), props);
@@ -20,59 +21,53 @@ const create = (tag, props = {}, children = []) => {
   return element;
 };
 
-const SIZE_KEY = "pdfTranslationSize";
 const HISTORY_OPEN_KEY = "pdfTranslationHistoryOpen";
 const POPUP_KEY = "pdfTranslationPopup";
 const POPUP_POSITION_KEY = "pdfTranslationPopupPosition";
-const SIZES = { small: { label: "小", px: 13 }, medium: { label: "中", px: 15 }, large: { label: "大", px: 17.5 } };
+const OPTIONS_PAGE = "options/options.html#translation";
 
-// Faces and line spacing for translations, kept across PDFs. A face that isn't installed falls
-// back to Noto Sans JP, then Hiragino.
-const FONT_KEY = "pdfTranslationFont";
-const LINE_KEY = "pdfTranslationLine";
-const FALLBACK = '"Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif';
-const FONTS = {
-  noto: { label: "Noto Sans JP", stack: FALLBACK },
-  hiragino: { label: "ヒラギノ角ゴ", stack: `"Hiragino Sans", "Hiragino Kaku Gothic ProN", ${FALLBACK}` },
-  yu: { label: "游ゴシック", stack: `"Yu Gothic UI", YuGothic, "Yu Gothic Medium", "Yu Gothic", ${FALLBACK}` },
-  biz: { label: "BIZ UDPゴシック", stack: `"BIZ UDPGothic", "BIZ UDGothic", ${FALLBACK}` },
-  system: { label: "システム", stack: `system-ui, -apple-system, ${FALLBACK}` },
-  // The browser's own serif face (Times and Hiragino Mincho on a Mac, unless set otherwise in Chrome).
-  serif: { label: "Serif（ブラウザ標準）", stack: "serif" },
-  notoSerif: {
-    label: "Noto Serif JP",
-    stack: `"Noto Serif JP", "Noto Serif CJK JP", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, serif`,
-  },
-  mincho: {
-    label: "明朝（ヒラギノ・游）",
-    stack: `"Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif JP", "Noto Serif CJK JP", serif`,
-  },
-};
-const LINES = {
-  tight: { label: "狭い", value: 1.3 },
-  normal: { label: "標準", value: 1.45 },
-  wide: { label: "広い", value: 1.7 },
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Little pictures of where the popup goes: the selected text as a gray bar, the popup as a blue
+// box. Automatic shows the right, left and under places all dashed.
+const POSITION_ICONS = {
+  auto: [
+    ["text", 7, 7, 6, 3],
+    ["dash", 14, 5, 5, 7],
+    ["dash", 1, 5, 5, 7],
+    ["dash", 6, 11, 8, 4],
+  ],
+  below: [
+    ["text", 5, 3, 10, 3],
+    ["box", 4, 8, 12, 7],
+  ],
+  above: [
+    ["box", 4, 1, 12, 7],
+    ["text", 5, 11, 10, 3],
+  ],
+  right: [
+    ["text", 1, 7, 8, 3],
+    ["box", 11, 3, 8, 11],
+  ],
+  left: [
+    ["box", 1, 3, 8, 11],
+    ["text", 11, 7, 8, 3],
+  ],
 };
 
-// A small row of buttons where one is chosen.
-const segmented = (choices, label, onChoose) => {
-  const buttons = Object.entries(choices).map(([name, choice]) => {
-    const choiceButton = create("button", {
-      type: "button",
-      textContent: choice.label,
-      title: `${label}: ${choice.label}`,
-    });
-    choiceButton.dataset.choice = name;
-    choiceButton.addEventListener("click", () => onChoose(name));
-    return choiceButton;
-  });
-  const group = create("div", { className: "mdTrSize", role: "group" }, buttons);
-  group.setAttribute("aria-label", label);
-  const select = (name) => {
-    for (const choiceButton of buttons)
-      choiceButton.setAttribute("aria-pressed", String(choiceButton.dataset.choice === name));
-  };
-  return { group, select };
+const positionIcon = (name) => {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 20 16");
+  svg.setAttribute("aria-hidden", "true");
+  for (const [kind, x, y, width, height] of POSITION_ICONS[name]) {
+    const rect = document.createElementNS(SVG_NS, "rect");
+    for (const [attribute, value] of Object.entries({ x, y, width, height, rx: kind === "text" ? 1 : 1.5 })) {
+      rect.setAttribute(attribute, String(value));
+    }
+    rect.setAttribute("class", `mdIcon-${kind}`);
+    svg.append(rect);
+  }
+  return svg;
 };
 
 const button = (textContent, onClick, className = "") => {
@@ -106,19 +101,6 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
   });
   const result = create("div", { className: "mdTrResult", lang: "ja" });
 
-  // Text size of the translations, kept across PDFs.
-  const sizeButtons = Object.entries(SIZES).map(([name, { label }]) => {
-    const sizeButton = create("button", { type: "button", textContent: label, title: `文字サイズ: ${label}` });
-    sizeButton.addEventListener("click", () => {
-      setSize(name);
-      storage.local.set({ [SIZE_KEY]: name });
-    });
-    sizeButton.dataset.size = name;
-    return sizeButton;
-  });
-  const sizeSwitch = create("div", { className: "mdTrSize", role: "group" }, sizeButtons);
-  sizeSwitch.setAttribute("aria-label", "文字サイズ");
-
   const popupToggle = create("button", {
     type: "button",
     className: "mdTrPopupToggle",
@@ -126,32 +108,46 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     title: "選んだ文の横にも翻訳を出す（パネルを閉じていても訳します）",
   });
   popupToggle.addEventListener("click", () => setPopupMode(!popupMode));
-  // Where the popup goes, shown while popups are on.
-  const positionSelect = create(
-    "select",
-    { className: "mdTrPositionSelect" },
-    Object.entries(POPUP_POSITIONS).map(([value, label]) => create("option", { value, textContent: label })),
-  );
-  positionSelect.addEventListener("change", () => {
-    popupPlace = positionSelect.value;
-    storage.local.set({ [POPUP_POSITION_KEY]: popupPlace });
+
+  // Where the popup goes, picked by its picture; shown while popups are on.
+  const positionButtons = Object.entries(POPUP_POSITIONS).map(([name, label]) => {
+    const positionButton = create("button", { type: "button", title: `ポップアップの位置: ${label}` }, [
+      positionIcon(name),
+    ]);
+    positionButton.setAttribute("aria-label", label);
+    positionButton.dataset.position = name;
+    positionButton.addEventListener("click", () => {
+      setPopupPlace(name);
+      storage.local.set({ [POPUP_POSITION_KEY]: name });
+    });
+    return positionButton;
   });
-  const positionRow = create("label", { className: "mdTrPositionRow" }, [
-    create("span", { textContent: "位置" }),
-    positionSelect,
-  ]);
+  const positionGroup = create("div", { className: "mdTrPositions", role: "group" }, positionButtons);
+  positionGroup.setAttribute("aria-label", "ポップアップの位置");
   const setPopupPlace = (value) => {
     popupPlace = POPUP_POSITIONS[value] ? value : DEFAULT_POPUP_POSITION;
-    positionSelect.value = popupPlace;
+    for (const positionButton of positionButtons) {
+      positionButton.setAttribute("aria-pressed", String(positionButton.dataset.position === popupPlace));
+    }
   };
 
   const setPopupMode = (value, { remember = true } = {}) => {
     popupMode = value;
-    positionRow.hidden = !value;
+    positionGroup.hidden = !value;
     popupToggle.setAttribute("aria-pressed", String(value));
     if (remember) storage.local.set({ [POPUP_KEY]: value });
     onModeChange(value);
   };
+
+  // Text size, face and line spacing are set on the options page.
+  const settingsButton = create("button", {
+    type: "button",
+    className: "mdTrSettings",
+    title: "訳文の表示設定（文字サイズ・フォント・行間）",
+  });
+  settingsButton.setAttribute("aria-label", settingsButton.title);
+  settingsButton.addEventListener("click", () => window.open(chrome.runtime.getURL(OPTIONS_PAGE), "_blank"));
+
   const retry = button("訳し直す", () => current && run(current.source, current.place, { force: true }));
   const copy = button("コピー", async () => {
     try {
@@ -193,62 +189,24 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     create("p", { textContent: "本文の英文を選ぶと、ここに翻訳が出ます。" }),
     create("p", { textContent: "一度訳した文はこのPDFの履歴に残り、同じ文を選ぶと履歴からすぐに出します。" }),
   ]);
+
   // Always in view, also before the first translation.
-  // Face and line spacing, on the root so the popup follows them too.
-  const root = document.documentElement.style;
-  const fontSelect = create(
-    "select",
-    { className: "mdTrPositionSelect" },
-    Object.entries(FONTS).map(([value, { label }]) => create("option", { value, textContent: label })),
-  );
-  const setFont = (name) => {
-    const font = FONTS[name] ? name : "noto";
-    fontSelect.value = font;
-    root.setProperty("--md-reading-font", FONTS[font].stack);
-  };
-  fontSelect.addEventListener("change", () => {
-    setFont(fontSelect.value);
-    storage.local.set({ [FONT_KEY]: fontSelect.value });
-  });
-  const lineSwitch = segmented(LINES, "行間", (name) => {
-    setLine(name);
-    storage.local.set({ [LINE_KEY]: name });
-  });
-  const setLine = (name) => {
-    const line = LINES[name] ? name : "normal";
-    lineSwitch.select(line);
-    root.setProperty("--md-tr-line", String(LINES[line].value));
-  };
+  const bar = create("div", { className: "mdTrBar" }, [popupToggle, positionGroup, settingsButton]);
+  const element = create("div", { className: "mdTrTab" }, [bar, card, empty, historyBox]);
 
-  const bar = create("div", { className: "mdTrBar" }, [popupToggle, positionRow, sizeSwitch]);
-  const typeBar = create("div", { className: "mdTrBar" }, [
-    create("label", { className: "mdTrPositionRow" }, [create("span", { textContent: "フォント" }), fontSelect]),
-    create("div", { className: "mdTrPositionRow mdTrPushEnd" }, [
-      create("span", { textContent: "行間" }),
-      lineSwitch.group,
-    ]),
-  ]);
-  const element = create("div", { className: "mdTrTab" }, [bar, typeBar, card, empty, historyBox]);
-
-  const setSize = (name) => {
-    const size = SIZES[name] ? name : "medium";
-    // On the root, so the translation popup uses the same size.
-    document.documentElement.style.setProperty("--md-tr-size", `${SIZES[size].px}px`);
-    for (const sizeButton of sizeButtons)
-      sizeButton.setAttribute("aria-pressed", String(sizeButton.dataset.size === size));
-  };
-  setSize("medium");
-  setFont("noto");
-  setLine("normal");
+  // The look follows the options page, also when it's changed there while this PDF is open.
+  applyStyle(DEFAULT_STYLE);
   setPopupMode(false, { remember: false });
   setPopupPlace(DEFAULT_POPUP_POSITION);
-  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY, POPUP_POSITION_KEY, FONT_KEY, LINE_KEY]).then((stored) => {
-    setFont(stored?.[FONT_KEY]);
-    setLine(stored?.[LINE_KEY]);
+  storage.local.get([...STYLE_KEYS, HISTORY_OPEN_KEY, POPUP_KEY, POPUP_POSITION_KEY]).then((stored) => {
+    applyStyle(normalizeStyle(stored ?? {}));
     setPopupPlace(stored?.[POPUP_POSITION_KEY]);
-    setSize(stored?.[SIZE_KEY]);
     historyBox.open = stored?.[HISTORY_OPEN_KEY] === true;
     setPopupMode(stored?.[POPUP_KEY] === true, { remember: false });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !STYLE_KEYS.some((name) => name in changes)) return;
+    storage.local.get(STYLE_KEYS).then((stored) => applyStyle(normalizeStyle(stored ?? {})));
   });
 
   const save = () => {

@@ -127,6 +127,13 @@ export type TextResource = {
   windowSettingsDesc: string;
   colorAndFontDesc: string;
   translationDisplayTitle: string;
+  pdfTranslationStyleTitle: string;
+  pdfTranslationStyleDesc: string;
+  pdfTranslationFont: string;
+  pdfTranslationSize: string;
+  pdfTranslationLine: string;
+  pdfTranslationPreview: string;
+  pdfTranslationFontHint: string;
   translationEngineTitle: string;
   translationEngineDesc: string;
   plamoTranslatorEnabledDesc: string;

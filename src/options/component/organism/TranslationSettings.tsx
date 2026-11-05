@@ -12,6 +12,7 @@ import { res } from "../../logic";
 import type { MouseDictionarySettings, UpdateEventHandler } from "../../types";
 import { Card, SwitchRow } from "../atom/Card";
 import { GlossaryEditor } from "./GlossaryEditor";
+import { PdfTranslationStyle } from "./PdfTranslationStyle";
 import { makeUpdate } from "./update";
 
 type Props = {
@@ -73,6 +74,8 @@ export const TranslationSettings: React.FC<Props> = (props) => {
           onChange={(checked) => update({ showTranslationByDefault: checked })}
         />
       </Card>
+
+      <PdfTranslationStyle />
 
       <Card title={res.get("translationEngineTitle")} description={res.get("translationEngineDesc")}>
         <SwitchRow

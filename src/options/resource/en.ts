@@ -146,6 +146,14 @@ const EnglishTextResource: TextResource = {
   windowSettingsDesc: "Size and position when the window first opens.",
   colorAndFontDesc: "Colors and font sizes of the headwords, descriptions and background.",
   translationDisplayTitle: "Display",
+  pdfTranslationStyleTitle: "Translations in the PDF viewer",
+  pdfTranslationStyleDesc:
+    "How translations look in the PDF viewer's translation tab and popup. Open PDFs follow at once.",
+  pdfTranslationFont: "Font",
+  pdfTranslationSize: "Text size",
+  pdfTranslationLine: "Line spacing",
+  pdfTranslationPreview: "Preview",
+  pdfTranslationFontHint: "Fonts not installed on this computer fall back to Noto Sans JP, then Hiragino Sans.",
   translationEngineTitle: "Translation engine",
   translationEngineDesc:
     "Uses PLaMo, then Chrome's built-in translator. Azure is used only when its explicit permission switch is on. Settings stay in this browser.",

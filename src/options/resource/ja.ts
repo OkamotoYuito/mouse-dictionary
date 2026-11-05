@@ -140,6 +140,14 @@ const JapaneseTextResource: TextResource = {
   windowSettingsDesc: "最初に開いたときの大きさと位置です。",
   colorAndFontDesc: "辞書ウィンドウの見出し・説明・背景の色と文字サイズです。",
   translationDisplayTitle: "表示",
+  pdfTranslationStyleTitle: "PDFビューアの訳文",
+  pdfTranslationStyleDesc:
+    "PDFビューアの翻訳タブとポップアップに出す訳文の見た目です。開いているPDFにもすぐ反映されます。",
+  pdfTranslationFont: "フォント",
+  pdfTranslationSize: "文字サイズ",
+  pdfTranslationLine: "行間",
+  pdfTranslationPreview: "プレビュー",
+  pdfTranslationFontHint: "このPCに入っていないフォントは、Noto Sans JP、それもなければヒラギノ角ゴで表示されます。",
   translationEngineTitle: "翻訳エンジン",
   translationEngineDesc:
     "PLaMo → Chrome内蔵の順に使います。Azureは翻訳タブ内の許可スイッチをオンにした場合だけ使います。設定はこのブラウザだけに保存されます。",
