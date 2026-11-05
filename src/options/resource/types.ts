@@ -127,6 +127,11 @@ export type TextResource = {
   windowSettingsDesc: string;
   colorAndFontDesc: string;
   translationDisplayTitle: string;
+  darkMode: string;
+  darkModeAuto: string;
+  darkModeOn: string;
+  darkModeOff: string;
+  darkModeDesc: string;
   pdfTranslationStyleTitle: string;
   pdfTranslationStyleDesc: string;
   pdfTranslationFont: string;

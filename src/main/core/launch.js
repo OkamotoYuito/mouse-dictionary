@@ -7,6 +7,7 @@
 import dom from "../lib/dom";
 import utils from "../lib/utils";
 import config from "./config";
+import { setUpDarkMode } from "./dark";
 import events from "./events";
 import pdf from "./pdf";
 import res from "./resource";
@@ -142,6 +143,7 @@ const initialize = (userSettings, storedPosition) => {
     area.dialog.offsetHeight,
   );
   dom.applyStyles(area.dialog, newStyles);
+  setUpDarkMode(area.dialog, userSettings);
 
   // Async
   setEvents(area, userSettings);

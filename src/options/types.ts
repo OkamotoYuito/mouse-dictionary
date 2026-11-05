@@ -9,6 +9,7 @@ export type InitialPosition = "left" | "right" | "keep";
 export type MouseDictionaryBasicSettings = {
   initialPosition: InitialPosition;
   backgroundColor: string;
+  darkMode: "auto" | "on" | "off";
   headFontColor: string;
   descFontColor: string;
   headFontSize: string;

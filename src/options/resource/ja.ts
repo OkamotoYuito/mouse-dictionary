@@ -140,6 +140,12 @@ const JapaneseTextResource: TextResource = {
   windowSettingsDesc: "最初に開いたときの大きさと位置です。",
   colorAndFontDesc: "辞書ウィンドウの見出し・説明・背景の色と文字サイズです。",
   translationDisplayTitle: "表示",
+  darkMode: "ダークモード",
+  darkModeAuto: "システムに合わせる",
+  darkModeOn: "オン",
+  darkModeOff: "オフ",
+  darkModeDesc:
+    "辞書ウィンドウを暗い色で表示します。上の色を明暗だけ反転して使います。次に辞書を開いたときから反映されます。",
   pdfTranslationStyleTitle: "PDFビューアの訳文",
   pdfTranslationStyleDesc:
     "PDFビューアの翻訳タブとポップアップに出す訳文の見た目です。開いているPDFにもすぐ反映されます。",

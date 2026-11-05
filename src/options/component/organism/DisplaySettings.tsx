@@ -107,6 +107,20 @@ export const DisplaySettings: React.FC<Props> = (props) => {
             />
           </div>
         </div>
+        <div className="field">
+          <span className="field-label">{res.get("darkMode")}</span>
+          <Select
+            value={settings.darkMode ?? "auto"}
+            options={[
+              { name: res.get("darkModeAuto"), value: "auto" },
+              { name: res.get("darkModeOn"), value: "on" },
+              { name: res.get("darkModeOff"), value: "off" },
+            ]}
+            style={{ maxWidth: 280 }}
+            onChange={(value) => update({ darkMode: value as MouseDictionarySettings["darkMode"] })}
+          />
+          <p className="hint">{res.get("darkModeDesc")}</p>
+        </div>
       </Card>
     </>
   );

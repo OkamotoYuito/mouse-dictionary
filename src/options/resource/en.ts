@@ -146,6 +146,12 @@ const EnglishTextResource: TextResource = {
   windowSettingsDesc: "Size and position when the window first opens.",
   colorAndFontDesc: "Colors and font sizes of the headwords, descriptions and background.",
   translationDisplayTitle: "Display",
+  darkMode: "Dark mode",
+  darkModeAuto: "Follow the system",
+  darkModeOn: "On",
+  darkModeOff: "Off",
+  darkModeDesc:
+    "Shows the dictionary window in dark colors, the colors above with light and dark swapped. Applies from the next time the dictionary opens.",
   pdfTranslationStyleTitle: "Translations in the PDF viewer",
   pdfTranslationStyleDesc:
     "How translations look in the PDF viewer's translation tab and popup. Open PDFs follow at once.",

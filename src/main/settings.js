@@ -16,6 +16,8 @@ export default {
   showTranslationByDefault: true,
   pdfUrl: "",
   backgroundColor: "#ffffff",
+  // "auto" follows the system's light or dark appearance; "on" and "off" force it.
+  darkMode: "auto",
   headFontColor: "#000088",
   descFontColor: "#101010",
   headFontSize: "x-large",
