@@ -121,6 +121,46 @@ const setUpPanning = (container) => {
   container.addEventListener("lostpointercapture", stop);
 };
 
+// When a page is wider than the view, leave room on both sides of it, like a desk, so either edge
+// of the page can be scrolled to the middle of the view instead of stopping at the window's edge.
+const DESK_ROOM = 0.4; // of the view's width, on each side
+
+const setUpDesk = (container, viewer, eventBus) => {
+  let room = 0;
+  const update = () => {
+    const widest = Math.max(0, ...[...viewer.querySelectorAll(".page")].map((page) => page.offsetWidth));
+    const next = widest > container.clientWidth - 24 ? Math.round(container.clientWidth * DESK_ROOM) : 0;
+    if (next === room) return;
+    const left = container.scrollLeft;
+    // On the container: PDF.js rewrites the viewer element's own style and classes.
+    container.style.setProperty("--md-desk-room", `${next}px`);
+    container.classList.toggle("mdWide", next > 0);
+    // Keep what is on screen in place while the room appears or goes away.
+    container.scrollLeft = left + next - room;
+    room = next;
+  };
+  let queued = false;
+  const updateSoon = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      update();
+    });
+  };
+  for (const name of [
+    "scalechanging",
+    "pagesloaded",
+    "rotationchanging",
+    "scrollmodechanged",
+    "spreadmodechanged",
+    "resize",
+  ]) {
+    eventBus.on(name, updateSoon);
+  }
+  new ResizeObserver(updateSoon).observe(container);
+};
+
 // ---- Sticky notes ----
 
 const app = window.PDFViewerApplication;
@@ -587,6 +627,7 @@ const start = async () => {
   container = document.getElementById("viewerContainer");
   if (!container) return;
   setUpPanning(container);
+  setUpDesk(container, document.getElementById("viewer") ?? container, app.eventBus);
   buildToolbar();
   buildPanel();
 

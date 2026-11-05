@@ -89,6 +89,16 @@
 
 #viewerContainer {
   scroll-behavior: auto;
+  /* A sideways swipe at the edge scrolls nothing else, and never goes back a page in the browser. */
+  overscroll-behavior: contain;
+}
+
+/* Room beside pages wider than the view (set from workspace.js). */
+#viewerContainer.mdWide .pdfViewer {
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 100%;
+  padding-inline: var(--md-desk-room, 0);
 }
 
 #viewerContainer.mdPanReady,
