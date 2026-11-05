@@ -136,6 +136,10 @@ export type TextResource = {
   lookupSettingsDesc: string;
   pageSettings: string;
   backupTitle: string;
+  plamoAstronomyGlossary: string;
+  plamoAstronomyGlossaryDesc: string;
+  plamoRecordedGlossary: string;
+  plamoRecordedGlossaryDesc: string;
 };
 
 export type TextResourceKeys = keyof TextResource;

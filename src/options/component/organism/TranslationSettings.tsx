@@ -23,7 +23,7 @@ const PLAMO_COMMAND = "llama-server -hf pfnet/plamo-3-translate-2b-GGUF:Q4_K_M -
 export const TranslationSettings: React.FC<Props> = (props) => {
   const update = makeUpdate(props.onUpdate);
   const [azure, setAzure] = useState({ key: "", region: "" });
-  const [plamo, setPlamo] = useState({ enabled: true, url: "" });
+  const [plamo, setPlamo] = useState({ enabled: true, url: "", astronomy: true, recordedWords: true });
 
   useEffect(() => {
     let mounted = true;
@@ -36,7 +36,13 @@ export const TranslationSettings: React.FC<Props> = (props) => {
     storage.local
       .pick(PLAMO_TRANSLATOR_KEY)
       .then((config) => {
-        if (mounted && config) setPlamo({ enabled: config.enabled !== false, url: config.url ?? "" });
+        if (mounted && config)
+          setPlamo({
+            enabled: config.enabled !== false,
+            url: config.url ?? "",
+            astronomy: config.astronomy !== false,
+            recordedWords: config.recordedWords !== false,
+          });
       })
       .catch(() => undefined);
     return () => {
@@ -53,7 +59,7 @@ export const TranslationSettings: React.FC<Props> = (props) => {
   const updatePlamo = (patch: Partial<typeof plamo>) => {
     const config = { ...plamo, ...patch };
     setPlamo(config);
-    storage.local.set({ [PLAMO_TRANSLATOR_KEY]: { enabled: config.enabled, url: config.url.trim() } });
+    storage.local.set({ [PLAMO_TRANSLATOR_KEY]: { ...config, url: config.url.trim() } });
   };
 
   return (
@@ -88,6 +94,18 @@ export const TranslationSettings: React.FC<Props> = (props) => {
             <p className="hint">
               {res.get("plamoTranslatorHelp")} <code>{PLAMO_COMMAND}</code>
             </p>
+            <SwitchRow
+              title={res.get("plamoAstronomyGlossary")}
+              description={res.get("plamoAstronomyGlossaryDesc")}
+              checked={plamo.astronomy}
+              onChange={(astronomy) => updatePlamo({ astronomy })}
+            />
+            <SwitchRow
+              title={res.get("plamoRecordedGlossary")}
+              description={res.get("plamoRecordedGlossaryDesc")}
+              checked={plamo.recordedWords}
+              onChange={(recordedWords) => updatePlamo({ recordedWords })}
+            />
           </>
         )}
       </Card>

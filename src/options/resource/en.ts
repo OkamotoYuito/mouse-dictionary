@@ -155,6 +155,12 @@ const EnglishTextResource: TextResource = {
   lookupSettingsDesc: "Details of how words are looked up and shown.",
   pageSettings: "Page detection and DOM",
   backupTitle: "Backup",
+  plamoAstronomyGlossary: "Use the astronomy glossary",
+  plamoAstronomyGlossaryDesc:
+    "Gives PLaMo about 100 astronomy terms (source → 天体, outflow → アウトフロー, main beam efficiency → 主ビーム能率, …) and tells it the text is from an astronomy paper.",
+  plamoRecordedGlossary: "Use recorded words as a glossary",
+  plamoRecordedGlossaryDesc:
+    "Gives PLaMo the meanings of the words you recorded in the PDF viewer. Meanings you wrote yourself win over the astronomy glossary.",
 };
 
 export { EnglishTextResource };

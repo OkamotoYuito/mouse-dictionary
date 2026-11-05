@@ -150,6 +150,12 @@ const JapaneseTextResource: TextResource = {
   lookupSettingsDesc: "単語の調べ方と表示の細かい動作です。",
   pageSettings: "ページの判定と表示方式",
   backupTitle: "設定のバックアップ",
+  plamoAstronomyGlossary: "天文学の用語集を使う",
+  plamoAstronomyGlossaryDesc:
+    "「source → 天体」「outflow → アウトフロー」「main beam efficiency → 主ビーム能率」など約100語の訳語と、天文学の論文だという文脈をPLaMoに渡します。",
+  plamoRecordedGlossary: "記録した単語を用語集に使う",
+  plamoRecordedGlossaryDesc:
+    "PDFビューアで記録した単語の意味を訳語として渡します。自分で書いた意味は、天文学の用語集より優先されます。",
 };
 
 export { JapaneseTextResource };

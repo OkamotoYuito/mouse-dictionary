@@ -7,6 +7,7 @@
 import { convertToBase64 } from "../main/lib/base64";
 import storage from "../main/lib/storage";
 import { AZURE_TRANSLATOR_KEY, translateWithAzure } from "./azure-translator";
+import { ASTRONOMY_CONTEXT, createGlossary } from "./glossary";
 import pdfCache from "./pdf-cache";
 import { PLAMO_TRANSLATOR_KEY, translateWithPlamo } from "./plamo-translator";
 import ExpiringQueue from "./queue";
@@ -33,7 +34,15 @@ const translateText = async (text) => {
   const { [PLAMO_TRANSLATOR_KEY]: plamo, [AZURE_TRANSLATOR_KEY]: azure } =
     (await storage.local.get([PLAMO_TRANSLATOR_KEY, AZURE_TRANSLATOR_KEY])) ?? {};
   if (plamo?.enabled !== false) {
-    const result = await translateWithPlamo(text, plamo);
+    // The astronomy glossary and the recorded words are on unless turned off.
+    const astronomy = plamo?.astronomy !== false;
+    const glossaryFor = await createGlossary({ astronomy, recordedWords: plamo?.recordedWords !== false }).catch(
+      () => () => [],
+    );
+    const result = await translateWithPlamo(text, plamo, {
+      glossaryFor,
+      context: astronomy ? ASTRONOMY_CONTEXT : "",
+    });
     if (result.translation || !azure?.key?.trim()) return { ...result, engine: "PLaMo" };
   }
   return { ...(await translateWithAzure(text, azure)), engine: "Azure" };
