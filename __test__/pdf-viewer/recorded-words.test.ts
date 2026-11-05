@@ -4,6 +4,7 @@ import {
   createMatcher,
   DEFAULT_EMPHASIS,
   emphasisVariables,
+  expandToWords,
   formsOf,
   lookupMeaning,
   normalizeEmphasis,
@@ -21,6 +22,15 @@ test("normalizes a selection to a lower-case word or short phrase", () => {
   expect(normalizeText("however, it")).toBe("");
   expect(normalizeText("a b c d e f g h i")).toBe("");
   expect(normalizeText("赤方偏移")).toBe("");
+});
+
+test("widens a selection that starts or ends inside a word", () => {
+  const text = "simply disperse under";
+  const slice = (start: number, end: number) => text.slice(...expandToWords(text, start, end));
+  expect(slice(8, 15)).toBe("disperse");
+  expect(slice(7, 10)).toBe("disperse");
+  expect(slice(6, 15)).toBe(" disperse");
+  expect(slice(9, 19)).toBe("disperse under");
 });
 
 const BASES: Record<string, string[]> = {

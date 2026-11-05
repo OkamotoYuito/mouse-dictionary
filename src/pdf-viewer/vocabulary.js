@@ -17,6 +17,7 @@ import {
   EMPHASIS_KEY,
   EMPHASIS_STYLES,
   emphasisVariables,
+  expandToWords,
   formsOf,
   isPhrase,
   lookupMeaning,
@@ -152,7 +153,15 @@ const STYLE = `
   #mdEmphasisPanel .strength { display: flex; align-items: center; gap: 10px; }
   #mdEmphasisPanel .strength input { flex: 1; accent-color: var(--md-ui-accent); }
   #mdEmphasisPanel .strength output { width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--md-ui-muted); }
-  #mdEmphasisPanel .count { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--md-ui-line); color: var(--md-ui-muted); font-size: 12px; }
+  #mdEmphasisPanel .recorded { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--md-ui-line); font-size: 12px; }
+  #mdEmphasisPanel .recorded summary { color: var(--md-ui-muted); cursor: pointer; }
+  #mdEmphasisPanel .recorded ul { max-height: 180px; margin: 8px 0 0; padding: 0; overflow-y: auto; list-style: none; }
+  #mdEmphasisPanel .recorded li { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; border-radius: 6px; }
+  #mdEmphasisPanel .recorded li:hover { background: var(--md-ui-hover); }
+  #mdEmphasisPanel .recorded button {
+    padding: 0 6px; font: 14px var(--md-ui-font); color: var(--md-ui-muted); background: none; border: 0; border-radius: 4px; cursor: pointer;
+  }
+  #mdEmphasisPanel .recorded button:hover { color: #ff453a; }
   #mdEmphasisToggle { display: flex; align-items: center; justify-content: center; }
   #mdEmphasisToggle::before { display: none; }
   #mdEmphasisToggle svg { width: 16px; height: 16px; fill: var(--toolbar-icon-bg-color, currentColor); }
@@ -193,6 +202,37 @@ const applyPopupSettings = () => {
   popup.style.setProperty("--md-popup-width", `${POPUP_WIDTHS[popupSettings.width][1]}px`);
 };
 
+// The page's text as a whole, so that a phrase can run across lines. Pieces of a line follow one
+// another directly (a word may be split, as in "d" + "isperse"); lines are separated by <br>.
+const readText = (textLayer) => {
+  const nodes = [];
+  let text = "";
+  const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeName === "BR") text += "\n";
+    if (node.nodeType !== Node.TEXT_NODE) continue;
+    nodes.push({ node, start: text.length, end: text.length + node.length });
+    text += node.textContent;
+  }
+  return { text, nodes };
+};
+
+// The selected text, widened to whole words: selecting "isperse" of "d|isperse" gives "disperse".
+const selectedText = (selection) => {
+  const range = selection.getRangeAt(0);
+  const textLayer = range.startContainer.parentElement?.closest(".textLayer");
+  if (!textLayer || range.endContainer.parentElement?.closest(".textLayer") !== textLayer) return selection.toString();
+  const { text, nodes } = readText(textLayer);
+  const offset = (container, at) => {
+    const entry = nodes.find(({ node }) => node === container);
+    return entry ? entry.start + at : -1;
+  };
+  const start = offset(range.startContainer, range.startOffset);
+  const end = offset(range.endContainer, range.endOffset);
+  if (start < 0 || end < 0) return selection.toString();
+  return text.slice(...expandToWords(text, start, end));
+};
+
 // Draw boxes over every occurrence of the recorded words and phrases on one page.
 const markPage = (pageDiv) => {
   pageDiv.querySelector(".mdRecordedLayer")?.remove();
@@ -206,14 +246,7 @@ const markPage = (pageDiv) => {
   const { clientWidth: width, clientHeight: height } = pageDiv;
   if (!width || !height) return;
 
-  // Search the page's text as a whole so that a phrase can run across lines.
-  const nodes = [];
-  let text = "";
-  const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    nodes.push({ node, start: text.length, end: text.length + node.length });
-    text += `${node.textContent}\n`;
-  }
+  const { text, nodes } = readText(textLayer);
 
   const layer = create("div", { className: "mdRecordedLayer" });
   layer.dataset.style = emphasis.style;
@@ -301,7 +334,7 @@ const showButtonLater = () => {
     const selection = document.getSelection();
     if (mouseIsDown || !selection || selection.isCollapsed) return;
     if (!selection.anchorNode?.parentElement?.closest(".textLayer")) return;
-    selectedWord = normalizeText(selection.toString());
+    selectedWord = normalizeText(selectedText(selection));
     if (!selectedWord || matcher.covers(selectedWord)) return;
     recordButton.textContent = buttonLabel(selectedWord);
     const rect = selection.getRangeAt(0).getBoundingClientRect();
@@ -551,9 +584,35 @@ const renderPanel = () => {
     toggle("「訳を編集」「記録を消す」を表示", popupSettings.showActions, (showActions) =>
       updatePopupSettings({ showActions }),
     ),
-    create("div", { className: "count", textContent: `記録した単語・熟語 ${Object.keys(recordedWords).length}件` }),
+    recordedList(),
   );
 };
+
+// Lets words be removed even when they are not in the open PDF.
+const recordedList = () => {
+  const words = Object.keys(recordedWords).sort();
+  const details = create("details", { className: "recorded" });
+  details.append(create("summary", { textContent: `記録した単語・熟語 ${words.length}件` }));
+  const list = create("ul");
+  for (const word of words) {
+    const remove = button("×", "remove");
+    remove.title = `「${word}」の記録を消す`;
+    remove.addEventListener("click", () => {
+      const { [word]: _, ...rest } = recordedWords;
+      saveWords(rest);
+    });
+    const item = create("li");
+    item.append(create("span", { textContent: word }), remove);
+    list.append(item);
+  }
+  details.append(list);
+  details.open = panelListOpen;
+  details.addEventListener("toggle", () => {
+    panelListOpen = details.open;
+  });
+  return details;
+};
+let panelListOpen = false;
 
 const closePanel = () => {
   panel.style.display = "none";

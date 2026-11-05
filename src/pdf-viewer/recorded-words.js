@@ -51,6 +51,16 @@ export const normalizeText = (text) => {
   return (trimmed.match(TOKEN) ?? []).length <= MAX_PHRASE_WORDS ? trimmed : "";
 };
 
+// Widens [start, end) of a text to whole words when either end falls inside a word.
+export const expandToWords = (text, start, end) => {
+  const isLetter = (ch) => /[A-Za-z'’]/.test(ch ?? "");
+  let from = start;
+  let to = end;
+  if (isLetter(text[from])) while (isLetter(text[from - 1])) from--;
+  if (isLetter(text[to - 1])) while (isLetter(text[to])) to++;
+  return [from, to];
+};
+
 export const isPhrase = (text) => (text.match(TOKEN) ?? []).length >= 2;
 
 export const normalizeEmphasis = (emphasis) => {
