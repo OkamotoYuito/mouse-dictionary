@@ -8,20 +8,21 @@
 // wherever they appear, and hovering one shows the meaning. Nothing is written into the PDF.
 
 import config from "../main/core/config";
+import createLookupWords from "../main/core/entry/en";
 import rule from "../main/core/rule";
 import storage from "../main/lib/storage";
 import {
   createColorizer,
-  createResolver,
+  createMatcher,
   EMPHASIS_KEY,
   EMPHASIS_STYLES,
   emphasisVariables,
-  findOccurrences,
   formsOf,
+  isPhrase,
   lookupMeaning,
   normalizeEmphasis,
   normalizePopup,
-  normalizeWord,
+  normalizeText,
   POPUP_FONT_SIZES,
   POPUP_KEY,
   POPUP_THEMES,
@@ -159,11 +160,11 @@ const STYLE = `
 
 let recordedWords = {};
 const getForms = (word) => formsOf(word, rule.doBase);
-let resolve = createResolver(recordedWords, getForms);
+let matcher = createMatcher([], getForms);
 
 const setRecordedWords = (words) => {
   recordedWords = words ?? {};
-  resolve = createResolver(recordedWords, getForms);
+  matcher = createMatcher(Object.keys(recordedWords), getForms);
 };
 let emphasis = normalizeEmphasis();
 
@@ -178,6 +179,7 @@ const recordButton = create("button", {
   type: "button",
   textContent: "単語と訳を記録",
 });
+const buttonLabel = (text) => (isPhrase(text) ? "熟語と訳を記録" : "単語と訳を記録");
 const popup = create("div", { id: "mdRecordedPopup", className: "mdUi" });
 const panel = create("div", { id: "mdEmphasisPanel", className: "mdUi" });
 
@@ -191,7 +193,7 @@ const applyPopupSettings = () => {
   popup.style.setProperty("--md-popup-width", `${POPUP_WIDTHS[popupSettings.width][1]}px`);
 };
 
-// Draw boxes over every occurrence of the recorded words on one page.
+// Draw boxes over every occurrence of the recorded words and phrases on one page.
 const markPage = (pageDiv) => {
   pageDiv.querySelector(".mdRecordedLayer")?.remove();
   const textLayer = pageDiv.querySelector(".textLayer");
@@ -204,25 +206,40 @@ const markPage = (pageDiv) => {
   const { clientWidth: width, clientHeight: height } = pageDiv;
   if (!width || !height) return;
 
-  const layer = create("div", { className: "mdRecordedLayer" });
-  layer.dataset.style = emphasis.style;
+  // Search the page's text as a whole so that a phrase can run across lines.
+  const nodes = [];
+  let text = "";
   const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    for (const { index, length, word } of findOccurrences(node.textContent, resolve)) {
-      const range = document.createRange();
-      range.setStart(node, index);
-      range.setEnd(node, index + length);
-      for (const rect of range.getClientRects()) {
-        const box = create("div");
-        box.dataset.word = word;
-        // Percentages keep the boxes in place when zooming.
-        Object.assign(box.style, {
-          left: `${((rect.left - left) / width) * 100}%`,
-          top: `${((rect.top - top) / height) * 100}%`,
-          width: `${(rect.width / width) * 100}%`,
-          height: `${(rect.height / height) * 100}%`,
-        });
-        layer.append(box);
+    nodes.push({ node, start: text.length, end: text.length + node.length });
+    text += `${node.textContent}\n`;
+  }
+
+  const layer = create("div", { className: "mdRecordedLayer" });
+  layer.dataset.style = emphasis.style;
+  const addBoxes = (node, start, end, word) => {
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    for (const rect of range.getClientRects()) {
+      const box = create("div");
+      box.dataset.word = word;
+      // Percentages keep the boxes in place when zooming.
+      Object.assign(box.style, {
+        left: `${((rect.left - left) / width) * 100}%`,
+        top: `${((rect.top - top) / height) * 100}%`,
+        width: `${(rect.width / width) * 100}%`,
+        height: `${(rect.height / height) * 100}%`,
+      });
+      layer.append(box);
+    }
+  };
+  for (const { word, segments } of matcher.find(text)) {
+    for (const { index, length } of segments) {
+      for (const { node, start, end } of nodes) {
+        const from = Math.max(index, start);
+        const to = Math.min(index + length, end);
+        if (from < to) addBoxes(node, from - start, to - start, word);
       }
     }
   }
@@ -257,7 +274,12 @@ const recordWord = async (word) => {
   recordButton.disabled = true;
   recordButton.textContent = "訳を調べています…";
   try {
-    const { head, ...result } = await lookupMeaning(word, { getForms, getDescriptions, suggest });
+    const { head, ...result } = await lookupMeaning(word, {
+      getForms,
+      getEntries: (text) => createLookupWords(text),
+      getDescriptions,
+      suggest,
+    });
     await saveWords({ ...recordedWords, [head]: { ...result, recordedAt: Date.now() } });
   } finally {
     recordButton.disabled = false;
@@ -279,8 +301,9 @@ const showButtonLater = () => {
     const selection = document.getSelection();
     if (mouseIsDown || !selection || selection.isCollapsed) return;
     if (!selection.anchorNode?.parentElement?.closest(".textLayer")) return;
-    selectedWord = normalizeWord(selection.toString());
-    if (!selectedWord || resolve(selectedWord)) return;
+    selectedWord = normalizeText(selection.toString());
+    if (!selectedWord || matcher.covers(selectedWord)) return;
+    recordButton.textContent = buttonLabel(selectedWord);
     const rect = selection.getRangeAt(0).getBoundingClientRect();
     document.body.append(recordButton);
     Object.assign(recordButton.style, { display: "block", left: `${rect.right + 6}px`, top: `${rect.top - 30}px` });
@@ -528,7 +551,7 @@ const renderPanel = () => {
     toggle("「訳を編集」「記録を消す」を表示", popupSettings.showActions, (showActions) =>
       updatePopupSettings({ showActions }),
     ),
-    create("div", { className: "count", textContent: `記録した単語 ${Object.keys(recordedWords).length}語` }),
+    create("div", { className: "count", textContent: `記録した単語・熟語 ${Object.keys(recordedWords).length}件` }),
   );
 };
 

@@ -150,7 +150,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     case "suggest_meaning": {
       if (
         typeof request.word !== "string" ||
-        !/^[a-zA-Z]+(?:['’-][a-zA-Z]+)*$/.test(request.word) ||
+        !/^[a-zA-Z]+(?:(?:['’-]| )[a-zA-Z]+){0,15}$/.test(request.word) ||
         request.word.length > 80
       ) {
         sendResponse({ error: "英単語を入力してください" });
