@@ -1,4 +1,4 @@
-import { translatePreservingTex } from "../main/core/translation";
+import { TEX_EXPRESSION, translatePreservingTex } from "../main/core/translation";
 
 export const PLAMO_TRANSLATOR_KEY = "**** plamo translator ****";
 
@@ -27,6 +27,14 @@ const requestTranslation = async (baseUrl, text) => {
   return translated;
 };
 
+// PLaMo keeps TeX intact and translates better when it sees the math, so masking is only the fallback.
+const translateParagraph = async (translator, paragraph) => {
+  const expressions = paragraph.match(TEX_EXPRESSION) ?? [];
+  const translated = await translator.translate(paragraph);
+  if (expressions.every((expression) => translated.includes(expression))) return translated;
+  return translatePreservingTex(translator, paragraph);
+};
+
 export const translateWithPlamo = async (text, { url } = {}) => {
   const baseUrl = url?.trim() || DEFAULT_PLAMO_URL;
   const translator = { translate: (part) => requestTranslation(baseUrl, part) };
@@ -34,7 +42,7 @@ export const translateWithPlamo = async (text, { url } = {}) => {
     // One paragraph per request keeps each prompt well inside the server's small context window.
     const paragraphs = [];
     for (const paragraph of text.split("\n\n")) {
-      paragraphs.push(await translatePreservingTex(translator, paragraph));
+      paragraphs.push(await translateParagraph(translator, paragraph));
     }
     return { translation: paragraphs.join("\n\n") };
   } catch (error) {

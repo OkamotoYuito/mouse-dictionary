@@ -37,7 +37,7 @@ export const BasicSettings: React.FC<Props> = (props) => {
   const [cachedPdfs, setCachedPdfs] = useState<pdf.PdfCacheEntry[]>([]);
   const [cacheBusy, setCacheBusy] = useState(false);
   const [azure, setAzure] = useState({ key: "", region: "" });
-  const [plamo, setPlamo] = useState({ enabled: false, url: "" });
+  const [plamo, setPlamo] = useState({ enabled: true, url: "" });
 
   useEffect(() => {
     let mounted = true;
@@ -61,7 +61,7 @@ export const BasicSettings: React.FC<Props> = (props) => {
       .pick(PLAMO_TRANSLATOR_KEY)
       .then((config) => {
         if (mounted && config) {
-          setPlamo({ enabled: !!config.enabled, url: config.url ?? "" });
+          setPlamo({ enabled: config.enabled !== false, url: config.url ?? "" });
         }
       })
       .catch(() => undefined);

@@ -5,11 +5,12 @@ afterEach(() => vi.unstubAllGlobals());
 
 const reply = (content: string) => ({ ok: true, json: async () => ({ choices: [{ message: { content } }] }) });
 
-test("translates each paragraph through the default local server, keeping TeX", async () => {
-  const fetchMock = vi.fn(async (_url: URL, options: RequestInit) => {
-    const text = JSON.parse(String(options.body)).messages[0].content;
-    return reply(text.includes("MDTEXTOKEN0END") ? "質量はMDTEXTOKEN0ENDです。" : "銀河は回転する。");
-  });
+const sentText = (options: RequestInit) => JSON.parse(String(options.body)).messages[0].content;
+
+test("translates each paragraph with its TeX through the default local server", async () => {
+  const fetchMock = vi.fn(async (_url: URL, options: RequestInit) =>
+    reply(sentText(options).includes("$M$") ? "質量は$M$です。" : "銀河は回転する。"),
+  );
   vi.stubGlobal("fetch", fetchMock);
   expect(await translateWithPlamo("The mass is $M$.\n\nGalaxies rotate.", { url: "" })).toEqual({
     translation: "質量は$M$です。\n\n銀河は回転する。",
@@ -18,9 +19,18 @@ test("translates each paragraph through the default local server, keeping TeX", 
   const [url, options] = fetchMock.mock.calls[0];
   expect(String(url)).toBe("http://127.0.0.1:8080/v1/chat/completions");
   expect(JSON.parse(String(options.body))).toMatchObject({
-    messages: [{ role: "user", content: "The mass is MDTEXTOKEN0END." }],
+    messages: [{ role: "user", content: "The mass is $M$." }],
     chat_template_kwargs: { source_lang: "en", target_lang: "ja" },
   });
+});
+
+test("masks TeX and retries when the translation alters it", async () => {
+  const fetchMock = vi.fn(async (_url: URL, options: RequestInit) =>
+    reply(sentText(options).includes("MDTEXTOKEN0END") ? "質量はMDTEXTOKEN0ENDです。" : "質量はMです。"),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await translateWithPlamo("The mass is $M$.")).toEqual({ translation: "質量は$M$です。" });
+  expect(sentText(fetchMock.mock.calls[1][1])).toBe("The mass is MDTEXTOKEN0END.");
 });
 
 test("uses the configured server URL", async () => {

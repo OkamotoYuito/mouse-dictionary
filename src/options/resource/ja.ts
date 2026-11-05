@@ -92,10 +92,10 @@ const JapaneseTextResource: TextResource = {
   persistPdf: "Web PDFを保存する（未使用7日間で自動削除）",
   translationSettings: "翻訳設定",
   showTranslationByDefault: "選択文の翻訳を初期状態で表示する",
-  plamoTranslatorEnabled: "PLaMo 3 Translate（ローカルサーバー）で翻訳する（Azureより優先）",
+  plamoTranslatorEnabled: "PLaMo 3 Translate（ローカルサーバー）で翻訳する（既定。Azureより優先）",
   plamoTranslatorUrl: "PLaMoサーバーのURL（空欄なら http://127.0.0.1:8080）",
   plamoTranslatorHelp:
-    "llama-server -hf pfnet/plamo-3-translate-2b-GGUF:Q4_K_M -c 4096 -np 1 --port 8080 で起動します。サーバーに接続できないときはChrome内蔵の翻訳に切り替わります。",
+    "llama-server -hf pfnet/plamo-3-translate-2b-GGUF:Q4_K_M -c 4096 -np 1 --port 8080 で起動します。サーバーに接続できないときは、Azureのキーがあれば Azure、なければChrome内蔵の翻訳に切り替わります。",
   azureTranslatorKey: "Azure AI Translator のキー（空欄ならChrome内蔵の翻訳を使用）",
   azureTranslatorRegion:
     "Azure AI Translator のリージョン（必須。Azureの「キーとエンドポイント」に表示される場所。例: japaneast）",

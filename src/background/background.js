@@ -28,6 +28,17 @@ if (BROWSER === "chrome") {
   });
 }
 
+// PLaMo is used unless turned off; Azure, when configured, covers for it while the local server is down.
+const translateText = async (text) => {
+  const { [PLAMO_TRANSLATOR_KEY]: plamo, [AZURE_TRANSLATOR_KEY]: azure } =
+    (await storage.local.get([PLAMO_TRANSLATOR_KEY, AZURE_TRANSLATOR_KEY])) ?? {};
+  if (plamo?.enabled !== false) {
+    const result = await translateWithPlamo(text, plamo);
+    if (result.translation || !azure?.key?.trim()) return { ...result, engine: "PLaMo" };
+  }
+  return { ...(await translateWithAzure(text, azure)), engine: "Azure" };
+};
+
 // cross-extension messaging
 chrome.runtime.onMessageExternal.addListener((message) => {
   sendToActiveTab((tabId) => {
@@ -165,14 +176,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         sendResponse({});
         break;
       }
-      storage.local
-        .get([PLAMO_TRANSLATOR_KEY, AZURE_TRANSLATOR_KEY])
-        .then(({ [PLAMO_TRANSLATOR_KEY]: plamo, [AZURE_TRANSLATOR_KEY]: azure } = {}) =>
-          plamo?.enabled
-            ? translateWithPlamo(request.text, plamo).then((result) => ({ ...result, engine: "PLaMo" }))
-            : translateWithAzure(request.text, azure).then((result) => ({ ...result, engine: "Azure" })),
-        )
-        .then(sendResponse, () => sendResponse({}));
+      translateText(request.text).then(sendResponse, () => sendResponse({}));
       return true;
     }
     case "open_pdf": {
