@@ -28,7 +28,9 @@ import { createTranslationTab } from "./translation-tab";
 
 const SIDE_KEY = "pdfSidePanel"; // { open, tab }
 const OLD_PANEL_KEY = "pdfStickyNotesPanelOpen";
-const TABS = { translation: "翻訳", notes: "付箋" };
+const TABS = { dictionary: "辞書", translation: "翻訳", notes: "付箋" };
+const DOCK_KEY = "pdfDictionaryDocked";
+const PANEL_TRANSITION = 220; // ms, a little over the panel's slide
 const SAVE_DELAY = 400;
 const DRAG_THRESHOLD = 3;
 const SCROLL_PAGE = 3; // PDF.js ScrollMode.PAGE
@@ -225,6 +227,11 @@ let foldAll;
 let addButton;
 let panelButton;
 let translateButton;
+let dictionaryButton;
+let dockArea;
+let dockNotice;
+let undockButton;
+let docked = true;
 let translationTab;
 let activeTab = "translation";
 const tabButtons = {};
@@ -658,6 +665,8 @@ const setPanelOpen = (open, { tab = activeTab, remember = true } = {}) => {
     tabButton.tabIndex = selected ? 0 : -1;
     tabPanes[name].hidden = !selected;
   }
+  dictionaryButton.classList.toggle("toggled", open && tab === "dictionary");
+  dictionaryButton.setAttribute("aria-expanded", String(open && tab === "dictionary"));
   translateButton.classList.toggle("toggled", open && tab === "translation");
   panelButton.classList.toggle("toggled", open && tab === "notes");
   translateButton.setAttribute("aria-expanded", String(open && tab === "translation"));
@@ -665,7 +674,57 @@ const setPanelOpen = (open, { tab = activeTab, remember = true } = {}) => {
   if (remember) storage.local.set({ [SIDE_KEY]: { open, tab } });
   renderPanel();
   // Let "page width" and "auto" zoom follow the narrower viewing area.
-  if (open !== wasOpen) setTimeout(() => app.eventBus.dispatch("resize", { source: window }), 220);
+  if (open !== wasOpen) setTimeout(() => app.eventBus.dispatch("resize", { source: window }), PANEL_TRANSITION);
+  // The docked dictionary goes away at once, and comes in once the panel has slid open.
+  sendDock();
+  if (open && !wasOpen) setTimeout(sendDock, PANEL_TRANSITION);
+};
+
+// ---- Docked dictionary ----
+
+// Tells the dictionary window (src/main/core/dock.js) where to sit, or that it has nowhere to.
+const sendDock = () => {
+  const showing = docked && isPanelOpen() && activeTab === "dictionary";
+  let rect = null;
+  if (showing) {
+    const { left, top, width, height } = dockArea.getBoundingClientRect();
+    if (width > 0 && height > 0) rect = { left, top, width, height };
+  }
+  window.dispatchEvent(new CustomEvent("mouse-dictionary-dock", { detail: { docked, rect } }));
+};
+
+const setDocked = (value, { remember = true } = {}) => {
+  docked = value;
+  dockArea.hidden = !docked;
+  dockNotice.hidden = docked;
+  undockButton.hidden = !docked;
+  if (remember) storage.local.set({ [DOCK_KEY]: docked });
+  sendDock();
+};
+
+const buildDictionaryPane = () => {
+  undockButton = create("button", { type: "button", textContent: "小窓に切り離す" });
+  undockButton.addEventListener("click", () => setDocked(false));
+  const dock = create("button", { type: "button", textContent: "パネルに固定" });
+  dock.addEventListener("click", () => {
+    setDocked(true);
+    setPanelOpen(true, { tab: "dictionary" });
+  });
+  // Shows through only while the dictionary window is off.
+  dockArea = create("div", { className: "mdDockArea" }, [
+    create("p", { textContent: "辞書を起動すると、ここに表示されます。" }),
+    create("p", { textContent: "ツールバーの Mouse Dictionary のアイコン（またはショートカット）で起動します。" }),
+  ]);
+  dockNotice = create("div", { className: "mdPanelEmpty" }, [
+    create("p", { textContent: "辞書は小窓で表示しています。" }),
+    dock,
+  ]);
+  new ResizeObserver(sendDock).observe(dockArea);
+  return create("div", { className: "mdTabPane" }, [
+    create("div", { className: "mdPanelHead" }, [create("h2", { textContent: "辞書" }), undockButton]),
+    dockArea,
+    dockNotice,
+  ]);
 };
 
 // A toolbar button opens its tab, or closes the panel when its tab is already showing.
@@ -698,6 +757,7 @@ const buildPanel = () => {
     goTo,
     showToast,
   });
+  tabPanes.dictionary = buildDictionaryPane();
   tabPanes.translation = create("div", { className: "mdTabPane" }, [translationTab.element]);
   tabPanes.notes = create("div", { className: "mdTabPane" }, [
     create("div", { className: "mdPanelHead" }, [panelTitle, foldAll, copy]),
@@ -720,8 +780,14 @@ const buildPanel = () => {
     tabBar.append(tabButton);
   }
 
-  panel = create("aside", { id: "mdSidePanel" }, [tabBar, tabPanes.translation, tabPanes.notes, toast]);
-  panel.setAttribute("aria-label", "翻訳と付箋");
+  panel = create("aside", { id: "mdSidePanel" }, [
+    tabBar,
+    tabPanes.dictionary,
+    tabPanes.translation,
+    tabPanes.notes,
+    toast,
+  ]);
+  panel.setAttribute("aria-label", "辞書・翻訳・付箋");
   document.getElementById("mainContainer")?.append(panel);
 };
 
@@ -741,6 +807,9 @@ const buildToolbar = () => {
   panelButton.append(countBadge);
   panelButton.addEventListener("click", () => toggleTab("notes"));
 
+  dictionaryButton = toolbarButton("mdDictionaryButton", "辞書");
+  dictionaryButton.addEventListener("click", () => toggleTab("dictionary"));
+
   translateButton = toolbarButton("mdTranslateButton", "翻訳（本文の英文を選ぶと翻訳します）");
   translateButton.addEventListener("mousedown", (event) => event.preventDefault()); // keep the text selection
   translateButton.addEventListener("click", () => {
@@ -750,7 +819,13 @@ const buildToolbar = () => {
   });
 
   const right = document.getElementById("toolbarViewerRight");
-  right?.prepend(translateButton, addButton, panelButton, create("div", { className: "mdToolbarDivider" }));
+  right?.prepend(
+    dictionaryButton,
+    translateButton,
+    addButton,
+    panelButton,
+    create("div", { className: "mdToolbarDivider" }),
+  );
 };
 
 // ---- Translation ----
@@ -841,9 +916,22 @@ const start = async () => {
     renderAllNotes();
   });
 
-  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY]);
+  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY, DOCK_KEY]);
   const side = stored?.[SIDE_KEY] ?? { open: stored?.[OLD_PANEL_KEY] === true, tab: "notes" };
-  setPanelOpen(side.open === true, { tab: TABS[side.tab] ? side.tab : "translation", remember: false });
+  setDocked(stored?.[DOCK_KEY] !== false, { remember: false });
+  setPanelOpen(side.open === true, { tab: TABS[side.tab] ? side.tab : "dictionary", remember: false });
+
+  // The dictionary window asks where to sit when it starts and whenever it's shown. Docked, it
+  // brings up its tab when shown, since it would otherwise stay out of sight.
+  window.addEventListener("mouse-dictionary-dock-request", (event) => {
+    if (docked && event.detail?.visible && !(isPanelOpen() && activeTab === "dictionary")) {
+      setPanelOpen(true, { tab: "dictionary" });
+    } else {
+      sendDock();
+    }
+  });
+  window.addEventListener("resize", sendDock);
+  window.dispatchEvent(new CustomEvent("mouse-dictionary-dock-ready"));
 };
 
 start().catch((error) => console.error("Mouse Dictionary:", error));

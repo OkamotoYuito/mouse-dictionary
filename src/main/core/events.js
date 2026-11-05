@@ -10,6 +10,7 @@ import sound from "../lib/sound";
 import traverser from "../lib/traverser";
 import utils from "../lib/utils";
 import config from "./config";
+import { setUpDocking } from "./dock";
 import entryDefault from "./entry/default";
 import Lookuper from "./lookuper";
 import { readPdfSelection } from "./pdf-selection";
@@ -30,6 +31,8 @@ const attach = async (settings, dialog, doUpdateContent) => {
   const draggable = new Draggable(settings.normalDialogStyles, settings.movingDialogStyles);
   draggable.events.change = (e) => config.savePosition(e);
   draggable.add(dialog);
+  // In the PDF viewer, the window can sit in the side panel's dictionary tab.
+  if (utils.isPdfViewer()) setUpDocking(dialog, draggable, settings);
 
   setDialogEvents(dialog);
 

@@ -27,6 +27,7 @@ export default class Draggable {
     this.edge = edge.build({ gripWidth: 20 });
     this.edgeState = 0;
     this.selectable = false;
+    this.locked = false;
     this.initialize();
     this.mouseMoveFunctions = [this.updateEdgeState, this.move, this.resize];
     this.snap = snap.build();
@@ -80,6 +81,10 @@ export default class Draggable {
   }
 
   updateEdgeState(e) {
+    if (this.locked) {
+      this.edgeState = 0;
+      return;
+    }
     const edgeState = this.edge.getEdgeState(this.current, e.x, e.y);
     if (!this.selectable) {
       this.edgeState = edgeState;
@@ -172,7 +177,7 @@ export default class Draggable {
   }
 
   handleDoubleClick(e) {
-    if (this.selectable) {
+    if (this.selectable || this.locked) {
       return;
     }
     const edgeState = this.edge.getEdgeState(this.current, e.x, e.y);
@@ -201,7 +206,7 @@ export default class Draggable {
   }
 
   handleMouseDown(e) {
-    if (this.selectable) {
+    if (this.selectable || this.locked) {
       return;
     }
     this.mode = this.edgeState & edge.EDGE ? MODE_RESIZING : MODE_MOVING;
@@ -218,6 +223,21 @@ export default class Draggable {
     if (this.mode === MODE_MOVING) {
       this.events.move();
     }
+  }
+
+  // A locked element stays where it is: no moving, resizing or jumping, and its text can be
+  // selected as usual. Used while the window is docked in the PDF viewer's side panel.
+  lock(locked) {
+    this.locked = locked;
+    this.initialize();
+    this.mainElementStyle.set("cursor", locked ? "auto" : "move");
+    this.syncFromStyle();
+  }
+
+  // Takes the element's place and size from its style after it was changed from outside.
+  syncFromStyle() {
+    Object.assign(this.current, utils.omap(this.mainElement.style, utils.convertToInt, SQUARE_FIELDS));
+    Object.assign(this.last, this.current);
   }
 
   activateSnap() {
