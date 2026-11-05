@@ -28,6 +28,7 @@
   --md-page-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 2px 6px rgb(0 0 0 / 0.08), 0 12px 32px rgb(0 0 0 / 0.07);
   --md-side-width: 360px;
   --md-tr-size: 15px;
+  --md-tr-line: 1.45;
   /* Translations: a Japanese sans that reads well on screen, Hiragino where Noto isn't installed. */
   --md-reading-font: "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
     sans-serif;
@@ -491,8 +492,13 @@ body.mdSideResizing #mdSidePanel {
   margin: 0 0 10px;
 }
 
-.mdTrBar .mdTrSize {
+.mdTrBar > .mdTrSize,
+.mdTrBar > .mdTrPushEnd {
   margin-inline-start: auto;
+}
+
+.mdTrBar + .mdTrBar {
+  margin-top: -4px;
 }
 
 .mdTrPositionRow {
@@ -569,7 +575,7 @@ body.mdSideResizing #mdSidePanel {
   border-radius: 6px;
   background: var(--md-hover);
   color: var(--md-muted);
-  font: calc(var(--md-tr-size) - 2px) / 1.45 var(--md-reading-font);
+  font: calc(var(--md-tr-size) - 2px) / calc(var(--md-tr-line) - 0.05) var(--md-reading-font);
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -581,7 +587,7 @@ body.mdSideResizing #mdSidePanel {
 /* The translation itself: large, airy, and wrapped the Japanese way. */
 .mdTrResult {
   color: var(--md-fg);
-  font: 400 var(--md-tr-size) / 1.6 var(--md-reading-font);
+  font: 400 var(--md-tr-size) / var(--md-tr-line) var(--md-reading-font);
   letter-spacing: 0.01em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -726,7 +732,7 @@ body.mdSideResizing #mdSidePanel {
   display: -webkit-box;
   margin-top: 4px;
   overflow: hidden;
-  font: 13px/1.5 var(--md-reading-font);
+  font: 13px / calc(var(--md-tr-line) - 0.05) var(--md-reading-font);
   white-space: pre-wrap;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -832,7 +838,7 @@ body.mdSideResizing #mdSidePanel {
 .mdTrPopupBody {
   overflow-y: auto;
   padding: 10px 14px 12px;
-  font: 400 var(--md-tr-size) / 1.6 var(--md-reading-font);
+  font: 400 var(--md-tr-size) / var(--md-tr-line) var(--md-reading-font);
   letter-spacing: 0.01em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

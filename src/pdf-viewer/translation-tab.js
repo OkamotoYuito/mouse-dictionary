@@ -26,6 +26,49 @@ const POPUP_KEY = "pdfTranslationPopup";
 const POPUP_POSITION_KEY = "pdfTranslationPopupPosition";
 const SIZES = { small: { label: "小", px: 13 }, medium: { label: "中", px: 15 }, large: { label: "大", px: 17.5 } };
 
+// Faces and line spacing for translations, kept across PDFs. A face that isn't installed falls
+// back to Noto Sans JP, then Hiragino.
+const FONT_KEY = "pdfTranslationFont";
+const LINE_KEY = "pdfTranslationLine";
+const FALLBACK = '"Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif';
+const FONTS = {
+  noto: { label: "Noto Sans JP", stack: FALLBACK },
+  hiragino: { label: "ヒラギノ角ゴ", stack: `"Hiragino Sans", "Hiragino Kaku Gothic ProN", ${FALLBACK}` },
+  yu: { label: "游ゴシック", stack: `"Yu Gothic UI", YuGothic, "Yu Gothic Medium", "Yu Gothic", ${FALLBACK}` },
+  biz: { label: "BIZ UDPゴシック", stack: `"BIZ UDPGothic", "BIZ UDGothic", ${FALLBACK}` },
+  system: { label: "システム", stack: `system-ui, -apple-system, ${FALLBACK}` },
+  mincho: {
+    label: "明朝",
+    stack: `"Noto Serif JP", "Noto Serif CJK JP", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, serif`,
+  },
+};
+const LINES = {
+  tight: { label: "狭い", value: 1.3 },
+  normal: { label: "標準", value: 1.45 },
+  wide: { label: "広い", value: 1.7 },
+};
+
+// A small row of buttons where one is chosen.
+const segmented = (choices, label, onChoose) => {
+  const buttons = Object.entries(choices).map(([name, choice]) => {
+    const choiceButton = create("button", {
+      type: "button",
+      textContent: choice.label,
+      title: `${label}: ${choice.label}`,
+    });
+    choiceButton.dataset.choice = name;
+    choiceButton.addEventListener("click", () => onChoose(name));
+    return choiceButton;
+  });
+  const group = create("div", { className: "mdTrSize", role: "group" }, buttons);
+  group.setAttribute("aria-label", label);
+  const select = (name) => {
+    for (const choiceButton of buttons)
+      choiceButton.setAttribute("aria-pressed", String(choiceButton.dataset.choice === name));
+  };
+  return { group, select };
+};
+
 const button = (textContent, onClick, className = "") => {
   const element = create("button", { type: "button", textContent, className });
   element.addEventListener("click", onClick);
@@ -145,8 +188,41 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
     create("p", { textContent: "一度訳した文はこのPDFの履歴に残り、同じ文を選ぶと履歴からすぐに出します。" }),
   ]);
   // Always in view, also before the first translation.
+  // Face and line spacing, on the root so the popup follows them too.
+  const root = document.documentElement.style;
+  const fontSelect = create(
+    "select",
+    { className: "mdTrPositionSelect" },
+    Object.entries(FONTS).map(([value, { label }]) => create("option", { value, textContent: label })),
+  );
+  const setFont = (name) => {
+    const font = FONTS[name] ? name : "noto";
+    fontSelect.value = font;
+    root.setProperty("--md-reading-font", FONTS[font].stack);
+  };
+  fontSelect.addEventListener("change", () => {
+    setFont(fontSelect.value);
+    storage.local.set({ [FONT_KEY]: fontSelect.value });
+  });
+  const lineSwitch = segmented(LINES, "行間", (name) => {
+    setLine(name);
+    storage.local.set({ [LINE_KEY]: name });
+  });
+  const setLine = (name) => {
+    const line = LINES[name] ? name : "normal";
+    lineSwitch.select(line);
+    root.setProperty("--md-tr-line", String(LINES[line].value));
+  };
+
   const bar = create("div", { className: "mdTrBar" }, [popupToggle, positionRow, sizeSwitch]);
-  const element = create("div", { className: "mdTrTab" }, [bar, card, empty, historyBox]);
+  const typeBar = create("div", { className: "mdTrBar" }, [
+    create("label", { className: "mdTrPositionRow" }, [create("span", { textContent: "フォント" }), fontSelect]),
+    create("div", { className: "mdTrPositionRow mdTrPushEnd" }, [
+      create("span", { textContent: "行間" }),
+      lineSwitch.group,
+    ]),
+  ]);
+  const element = create("div", { className: "mdTrTab" }, [bar, typeBar, card, empty, historyBox]);
 
   const setSize = (name) => {
     const size = SIZES[name] ? name : "medium";
@@ -156,9 +232,13 @@ export const createTranslationTab = ({ onMakeNote, showToast, onModeChange = () 
       sizeButton.setAttribute("aria-pressed", String(sizeButton.dataset.size === size));
   };
   setSize("medium");
+  setFont("noto");
+  setLine("normal");
   setPopupMode(false, { remember: false });
   setPopupPlace(DEFAULT_POPUP_POSITION);
-  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY, POPUP_POSITION_KEY]).then((stored) => {
+  storage.local.get([SIZE_KEY, HISTORY_OPEN_KEY, POPUP_KEY, POPUP_POSITION_KEY, FONT_KEY, LINE_KEY]).then((stored) => {
+    setFont(stored?.[FONT_KEY]);
+    setLine(stored?.[LINE_KEY]);
     setPopupPlace(stored?.[POPUP_POSITION_KEY]);
     setSize(stored?.[SIZE_KEY]);
     historyBox.open = stored?.[HISTORY_OPEN_KEY] === true;
