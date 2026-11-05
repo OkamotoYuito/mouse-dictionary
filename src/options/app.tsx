@@ -62,16 +62,13 @@ const App = () => {
     };
     init();
 
-    chrome.runtime.onMessage.addListener(async (request) => {
-      switch (request?.type) {
-        case "prepare_pdf": {
-          const id = (await sendMessage({ type: "shift_pdf_id" })) as string;
-          if (id) {
-            await showPdfViewerWithSettings(id);
-          }
-          break;
-        }
-      }
+    // Not async: Chrome takes a returned promise as this page's reply, which would answer messages meant
+    // for the background (such as translate_text from the PDF viewer) with undefined.
+    chrome.runtime.onMessage.addListener((request) => {
+      if (request?.type !== "prepare_pdf") return;
+      sendMessage({ type: "shift_pdf_id" }).then((id) => {
+        if (id) showPdfViewerWithSettings(id as string);
+      });
     });
   }, []);
 
