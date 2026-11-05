@@ -11,6 +11,7 @@ import { storage } from "../../extern";
 import { res } from "../../logic";
 import type { MouseDictionarySettings, UpdateEventHandler } from "../../types";
 import { Card, SwitchRow } from "../atom/Card";
+import { GlossaryEditor } from "./GlossaryEditor";
 import { makeUpdate } from "./update";
 
 type Props = {
@@ -109,6 +110,12 @@ export const TranslationSettings: React.FC<Props> = (props) => {
           </>
         )}
       </Card>
+
+      {plamo.enabled && plamo.astronomy && (
+        <Card title={res.get("glossaryTitle")} description={res.get("glossaryDesc")}>
+          <GlossaryEditor />
+        </Card>
+      )}
 
       <Card title={res.get("azureTranslatorTitle")} description={res.get("azureTranslatorHelp")}>
         <div className="field">

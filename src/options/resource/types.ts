@@ -140,6 +140,18 @@ export type TextResource = {
   plamoAstronomyGlossaryDesc: string;
   plamoRecordedGlossary: string;
   plamoRecordedGlossaryDesc: string;
+  glossaryTitle: string;
+  glossaryDesc: string;
+  glossarySearch: string;
+  glossaryCount: string;
+  glossarySource: string;
+  glossaryTarget: string;
+  glossaryAdd: string;
+  glossaryDelete: string;
+  glossaryDuplicate: string;
+  glossaryNoMatch: string;
+  glossaryReset: string;
+  glossaryResetConfirm: string;
 };
 
 export type TextResourceKeys = keyof TextResource;

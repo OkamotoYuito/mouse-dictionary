@@ -1,5 +1,6 @@
 export * from "./AdvancedSettings";
 export * from "./DisplaySettings";
+export * from "./GlossaryEditor";
 export * from "./LoadDictionary";
 export * from "./OperationPanel";
 export * from "./PdfSettings";

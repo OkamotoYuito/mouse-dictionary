@@ -161,6 +161,19 @@ const EnglishTextResource: TextResource = {
   plamoRecordedGlossary: "Use recorded words as a glossary",
   plamoRecordedGlossaryDesc:
     "Gives PLaMo the meanings of the words you recorded in the PDF viewer. Meanings you wrote yourself win over the astronomy glossary.",
+  glossaryTitle: "Astronomy glossary",
+  glossaryDesc:
+    "Terms and translations given to PLaMo. Changes are saved right away and used from the next translation. Meanings you wrote for recorded words win over this list.",
+  glossarySearch: "Filter by term or translation",
+  glossaryCount: "{{{count}}} terms",
+  glossarySource: "Term",
+  glossaryTarget: "Translation",
+  glossaryAdd: "Add a term",
+  glossaryDelete: "Delete",
+  glossaryDuplicate: "This term appears more than once. The upper one is used.",
+  glossaryNoMatch: "No matching terms",
+  glossaryReset: "Restore the default glossary",
+  glossaryResetConfirm: "Restore the default glossary? Terms you added or changed will be lost.",
 };
 
 export { EnglishTextResource };

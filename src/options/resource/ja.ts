@@ -156,6 +156,19 @@ const JapaneseTextResource: TextResource = {
   plamoRecordedGlossary: "記録した単語を用語集に使う",
   plamoRecordedGlossaryDesc:
     "PDFビューアで記録した単語の意味を訳語として渡します。自分で書いた意味は、天文学の用語集より優先されます。",
+  glossaryTitle: "天文学の用語集",
+  glossaryDesc:
+    "PLaMoに渡す訳語の一覧です。変更はすぐに保存され、次の翻訳から使われます。記録した単語に自分で書いた意味は、ここより優先されます。",
+  glossarySearch: "英語・訳語で絞り込み",
+  glossaryCount: "{{{count}}}語",
+  glossarySource: "英語",
+  glossaryTarget: "訳語",
+  glossaryAdd: "用語を追加",
+  glossaryDelete: "削除",
+  glossaryDuplicate: "同じ英語が複数あります。上にあるものが使われます。",
+  glossaryNoMatch: "一致する用語はありません",
+  glossaryReset: "初期の用語集に戻す",
+  glossaryResetConfirm: "用語集を初期状態に戻します。追加・変更した用語は消えます。",
 };
 
 export { JapaneseTextResource };

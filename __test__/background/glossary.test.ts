@@ -53,6 +53,18 @@ test("puts the user's own meanings first and dictionary meanings of recorded wor
   ]);
 });
 
+test("uses the list edited on the options page instead of the built-in one, skipping blank rows", async () => {
+  stored["**** astronomy glossary ****"] = [
+    ["outflow", "分子流"],
+    ["", "空欄"],
+    ["clump", " "],
+  ];
+  const glossaryFor = await createGlossary({ astronomy: true, recordedWords: false });
+  expect(glossaryFor("The outflow from the clump and the hot core.")).toEqual([
+    { source: "outflow", target: "分子流" },
+  ]);
+});
+
 test("returns nothing when both glossaries are turned off", async () => {
   const glossaryFor = await createGlossary({ astronomy: false, recordedWords: false });
   expect(glossaryFor("The outflow is strong.")).toEqual([]);
