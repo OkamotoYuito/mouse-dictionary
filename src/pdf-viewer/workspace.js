@@ -30,7 +30,11 @@ import { createTranslationTab } from "./translation-tab";
 
 const SIDE_KEY = "pdfSidePanel"; // { open, tab }
 const OLD_PANEL_KEY = "pdfStickyNotesPanelOpen";
-const TABS = { dictionary: "辞書", translation: "翻訳", notes: "付箋" };
+// Translation on top and the dictionary below share one tab; the notes have their own.
+const TABS = { reading: "翻訳・辞書", notes: "付箋" };
+const OLD_TABS = { dictionary: "reading", translation: "reading" };
+const SPLIT_KEY = "pdfSideSplit";
+const SPLIT = { min: 0.15, max: 0.85, default: 0.5 }; // the translation's share of the height
 const DOCK_KEY = "pdfDictionaryDocked";
 const WIDTH_KEY = "pdfSidePanelWidth";
 const SIDE_WIDTH = { min: 280, max: 760, default: 360 };
@@ -231,13 +235,14 @@ let foldAll;
 let addButton;
 let panelButton;
 let translateButton;
-let dictionaryButton;
+let readingPane;
+let splitRatio = SPLIT.default;
 let dockArea;
 let dockNotice;
 let undockButton;
 let docked = true;
 let translationTab;
-let activeTab = "translation";
+let activeTab = "reading";
 const tabButtons = {};
 const tabPanes = {};
 let countBadge;
@@ -675,11 +680,9 @@ const setPanelOpen = (open, { tab = activeTab, remember = true } = {}) => {
     tabButton.tabIndex = selected ? 0 : -1;
     tabPanes[name].hidden = !selected;
   }
-  dictionaryButton.classList.toggle("toggled", open && tab === "dictionary");
-  dictionaryButton.setAttribute("aria-expanded", String(open && tab === "dictionary"));
-  translateButton.classList.toggle("toggled", open && tab === "translation");
+  translateButton.classList.toggle("toggled", open && tab === "reading");
   panelButton.classList.toggle("toggled", open && tab === "notes");
-  translateButton.setAttribute("aria-expanded", String(open && tab === "translation"));
+  translateButton.setAttribute("aria-expanded", String(open && tab === "reading"));
   panelButton.setAttribute("aria-expanded", String(open && tab === "notes"));
   if (remember) storage.local.set({ [SIDE_KEY]: { open, tab } });
   renderPanel();
@@ -694,7 +697,7 @@ const setPanelOpen = (open, { tab = activeTab, remember = true } = {}) => {
 
 // Tells the dictionary window (src/main/core/dock.js) where to sit, or that it has nowhere to.
 const sendDock = () => {
-  const showing = docked && isPanelOpen() && activeTab === "dictionary";
+  const showing = docked && isPanelOpen() && activeTab === "reading";
   let rect = null;
   if (showing) {
     const { left, top, width, height } = dockArea.getBoundingClientRect();
@@ -708,6 +711,8 @@ const setDocked = (value, { remember = true } = {}) => {
   dockArea.hidden = !docked;
   dockNotice.hidden = docked;
   undockButton.hidden = !docked;
+  // Undocked, the dictionary's half shrinks to a line and the translation takes the room.
+  readingPane.classList.toggle("mdUndocked", !docked);
   if (remember) storage.local.set({ [DOCK_KEY]: docked });
   sendDock();
 };
@@ -760,23 +765,64 @@ const buildDictionaryPane = () => {
   const dock = create("button", { type: "button", textContent: "パネルに固定" });
   dock.addEventListener("click", () => {
     setDocked(true);
-    setPanelOpen(true, { tab: "dictionary" });
+    setPanelOpen(true, { tab: "reading" });
   });
   // Shows through only while the dictionary window is off.
   dockArea = create("div", { className: "mdDockArea" }, [
-    create("p", { textContent: "辞書を起動すると、ここに表示されます。" }),
+    create("p", { textContent: "辞書を起動すると、ここに単語の意味が出ます。" }),
     create("p", { textContent: "ツールバーの Mouse Dictionary のアイコン（またはショートカット）で起動します。" }),
   ]);
-  dockNotice = create("div", { className: "mdPanelEmpty" }, [
-    create("p", { textContent: "辞書は小窓で表示しています。" }),
+  dockNotice = create("div", { className: "mdDockNotice" }, [
+    create("span", { textContent: "辞書は小窓で表示中" }),
     dock,
   ]);
   new ResizeObserver(sendDock).observe(dockArea);
-  return create("div", { className: "mdTabPane" }, [
-    create("div", { className: "mdPanelHead" }, [create("h2", { textContent: "辞書" }), undockButton]),
+  return create("section", { className: "mdSplitBottom" }, [
+    create("div", { className: "mdSplitHead" }, [create("h2", { textContent: "辞書" }), undockButton, dockNotice]),
     dockArea,
-    dockNotice,
   ]);
+};
+
+const setSplit = (ratio) => {
+  splitRatio = Math.min(SPLIT.max, Math.max(SPLIT.min, ratio));
+  readingPane.style.setProperty("--md-split-top", String(splitRatio));
+  readingPane.style.setProperty("--md-split-bottom", String(1 - splitRatio));
+};
+
+// The line between the translation and the dictionary: drag it to share the height differently,
+// double-click it for half and half.
+const buildSplitter = () => {
+  const splitter = create("div", {
+    className: "mdSplitter",
+    role: "separator",
+    title: "ドラッグで上下の比率を変更（ダブルクリックで半々）",
+  });
+  splitter.setAttribute("aria-orientation", "horizontal");
+  splitter.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    document.body.classList.add("mdSplitting");
+    const move = (moveEvent) => {
+      const rect = readingPane.getBoundingClientRect();
+      setSplit((moveEvent.clientY - rect.top) / rect.height);
+      sendDock();
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      document.body.classList.remove("mdSplitting");
+      storage.local.set({ [SPLIT_KEY]: splitRatio });
+      sendDock();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+  });
+  splitter.addEventListener("dblclick", () => {
+    setSplit(SPLIT.default);
+    storage.local.remove(SPLIT_KEY);
+    sendDock();
+  });
+  return splitter;
 };
 
 // A toolbar button opens its tab, or closes the panel when its tab is already showing.
@@ -810,8 +856,13 @@ const buildPanel = () => {
     onModeChange: (on) => on || closePopup(),
   });
   translationTab.subscribe(updatePopup);
-  tabPanes.dictionary = buildDictionaryPane();
-  tabPanes.translation = create("div", { className: "mdTabPane" }, [translationTab.element]);
+  readingPane = create("div", { className: "mdTabPane mdReadingPane" }, [
+    create("section", { className: "mdSplitTop" }, [translationTab.element]),
+    buildSplitter(),
+    buildDictionaryPane(),
+  ]);
+  setSplit(SPLIT.default);
+  tabPanes.reading = readingPane;
   tabPanes.notes = create("div", { className: "mdTabPane" }, [
     create("div", { className: "mdPanelHead" }, [panelTitle, foldAll, copy]),
     search,
@@ -833,15 +884,8 @@ const buildPanel = () => {
     tabBar.append(tabButton);
   }
 
-  panel = create("aside", { id: "mdSidePanel" }, [
-    buildResizer(),
-    tabBar,
-    tabPanes.dictionary,
-    tabPanes.translation,
-    tabPanes.notes,
-    toast,
-  ]);
-  panel.setAttribute("aria-label", "辞書・翻訳・付箋");
+  panel = create("aside", { id: "mdSidePanel" }, [buildResizer(), tabBar, tabPanes.reading, tabPanes.notes, toast]);
+  panel.setAttribute("aria-label", "翻訳・辞書・付箋");
   document.getElementById("mainContainer")?.append(panel);
 };
 
@@ -861,25 +905,16 @@ const buildToolbar = () => {
   panelButton.append(countBadge);
   panelButton.addEventListener("click", () => toggleTab("notes"));
 
-  dictionaryButton = toolbarButton("mdDictionaryButton", "辞書");
-  dictionaryButton.addEventListener("click", () => toggleTab("dictionary"));
-
-  translateButton = toolbarButton("mdTranslateButton", "翻訳（本文の英文を選ぶと翻訳します）");
+  translateButton = toolbarButton("mdTranslateButton", "翻訳・辞書（本文の英文を選ぶと翻訳します）");
   translateButton.addEventListener("mousedown", (event) => event.preventDefault()); // keep the text selection
   translateButton.addEventListener("click", () => {
-    toggleTab("translation");
+    toggleTab("reading");
     // Opened with a sentence selected: translate it right away.
-    if (isPanelOpen() && activeTab === "translation") translateSelectedText();
+    if (isPanelOpen() && activeTab === "reading") translateSelectedText();
   });
 
   const right = document.getElementById("toolbarViewerRight");
-  right?.prepend(
-    dictionaryButton,
-    translateButton,
-    addButton,
-    panelButton,
-    create("div", { className: "mdToolbarDivider" }),
-  );
+  right?.prepend(translateButton, addButton, panelButton, create("div", { className: "mdToolbarDivider" }));
 };
 
 // ---- Translation ----
@@ -960,7 +995,7 @@ const openPopup = (selected, runId) => {
   const head = create("div", { className: "mdTrPopupHead" }, [
     create("span", { className: "mdTrPopupStatus", role: "status" }),
     toNote,
-    popupButton("パネル", "翻訳タブで開く", () => setPanelOpen(true, { tab: "translation" })),
+    popupButton("パネル", "サイドパネルで開く", () => setPanelOpen(true, { tab: "reading" })),
     popupButton("×", "閉じる", closePopup),
   ]);
   head.addEventListener("pointerdown", dragPopup);
@@ -987,7 +1022,7 @@ const openPopup = (selected, runId) => {
 // always in popup mode, where the translation also pops up beside the sentence.
 const translateSelectedText = () => {
   const popupMode = translationTab.isPopupMode();
-  if (!popupMode && !(isPanelOpen() && activeTab === "translation")) return;
+  if (!popupMode && !(isPanelOpen() && activeTab === "reading")) return;
   const selected = readSelection();
   if (!selected || !isSentence(selected.text)) return;
   if (!selected.selection.anchorNode?.parentElement?.closest(".textLayer")) return;
@@ -1077,17 +1112,19 @@ const start = async () => {
     renderAllNotes();
   });
 
-  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY, DOCK_KEY, WIDTH_KEY]);
+  const stored = await storage.local.get([SIDE_KEY, OLD_PANEL_KEY, DOCK_KEY, WIDTH_KEY, SPLIT_KEY]);
+  if (Number.isFinite(stored?.[SPLIT_KEY])) setSplit(stored[SPLIT_KEY]);
   if (Number.isFinite(stored?.[WIDTH_KEY])) setSideWidth(stored[WIDTH_KEY]);
   const side = stored?.[SIDE_KEY] ?? { open: stored?.[OLD_PANEL_KEY] === true, tab: "notes" };
   setDocked(stored?.[DOCK_KEY] !== false, { remember: false });
-  setPanelOpen(side.open === true, { tab: TABS[side.tab] ? side.tab : "dictionary", remember: false });
+  const tab = OLD_TABS[side.tab] ?? side.tab;
+  setPanelOpen(side.open === true, { tab: TABS[tab] ? tab : "reading", remember: false });
 
   // The dictionary window asks where to sit when it starts and whenever it's shown. Docked, it
   // brings up its tab when shown, since it would otherwise stay out of sight.
   window.addEventListener("mouse-dictionary-dock-request", (event) => {
-    if (docked && event.detail?.visible && !(isPanelOpen() && activeTab === "dictionary")) {
-      setPanelOpen(true, { tab: "dictionary" });
+    if (docked && event.detail?.visible && !(isPanelOpen() && activeTab === "reading")) {
+      setPanelOpen(true, { tab: "reading" });
     } else {
       sendDock();
     }

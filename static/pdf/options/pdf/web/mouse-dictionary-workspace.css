@@ -402,11 +402,129 @@ body.mdSideResizing #mdSidePanel {
   display: none;
 }
 
-/* ---- Dictionary tab: the docked dictionary window covers this area ---- */
+/* ---- Translation above, dictionary below, in one tab ---- */
+
+.mdReadingPane {
+  --md-split-top: 0.5;
+  --md-split-bottom: 0.5;
+}
+
+.mdSplitTop,
+.mdSplitBottom {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mdSplitTop {
+  flex: var(--md-split-top) 1 0;
+}
+
+.mdSplitBottom {
+  flex: var(--md-split-bottom) 1 0;
+}
+
+.mdReadingPane.mdUndocked .mdSplitTop {
+  flex: 1 1 0;
+}
+
+.mdReadingPane.mdUndocked .mdSplitBottom {
+  flex: none;
+}
+
+.mdReadingPane.mdUndocked .mdSplitter {
+  display: none;
+}
+
+.mdSplitter {
+  position: relative;
+  flex: none;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.mdSplitter::before {
+  content: "";
+  position: absolute;
+  inset: 4.5px 0 auto;
+  height: 1px;
+  background: var(--md-chrome-line);
+}
+
+.mdSplitter::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--md-chrome-line);
+  transition: background-color 0.15s ease;
+}
+
+.mdSplitter:hover::after,
+body.mdSplitting .mdSplitter::after {
+  background: var(--md-accent);
+}
+
+body.mdSplitting,
+body.mdSplitting * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+}
+
+.mdSplitHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 6px;
+}
+
+.mdSplitHead h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--md-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.mdSplitHead button {
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: transparent;
+  color: var(--md-accent);
+  font: 500 12px var(--md-font);
+  cursor: pointer;
+}
+
+.mdSplitHead button:hover {
+  background: var(--md-hover);
+}
+
+.mdSplitHead button[hidden],
+.mdDockNotice[hidden] {
+  display: none;
+}
+
+.mdDockNotice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--md-muted);
+  font-size: 12px;
+}
+
+/* ---- The docked dictionary window covers this area ---- */
 
 .mdDockArea {
   display: flex;
   flex: 1;
+  min-height: 0;
   flex-direction: column;
   justify-content: center;
   margin: 0 12px 12px;
