@@ -121,23 +121,42 @@ const setUpPanning = (container) => {
   container.addEventListener("lostpointercapture", stop);
 };
 
-// When a page is wider than the view, leave room on both sides of it, like a desk, so either edge
-// of the page can be scrolled to the middle of the view instead of stopping at the window's edge.
-const DESK_ROOM = 0.4; // of the view's width, on each side
+// Leave room on both sides of the pages, like a desk, so they can be slid sideways at any zoom:
+// either edge of a page can be brought to the middle of the view, e.g. out from under the
+// dictionary window. Wrapped pages need the view's width to wrap in, so they get none.
+const DESK_ROOM = 0.5; // of the view's width, on each side
+const SCROLL_WRAPPED = 2; // PDF.js ScrollMode.WRAPPED
 
 const setUpDesk = (container, viewer, eventBus) => {
   let room = 0;
+  let recenter = false;
+
+  // How far the pages sit from the middle of the view, sideways.
+  const offCenter = () => {
+    const page = viewer.querySelector(".page");
+    if (!page) return 0;
+    const pageRect = page.getBoundingClientRect();
+    const viewRect = container.getBoundingClientRect();
+    return pageRect.left + pageRect.width / 2 - (viewRect.left + container.clientWidth / 2);
+  };
+
   const update = () => {
-    const widest = Math.max(0, ...[...viewer.querySelectorAll(".page")].map((page) => page.offsetWidth));
-    const next = widest > container.clientWidth - 24 ? Math.round(container.clientWidth * DESK_ROOM) : 0;
+    if (recenter) {
+      recenter = false;
+      container.scrollLeft += offCenter();
+    }
+    const firstPage = viewer.querySelector(".page");
+    const usable =
+      firstPage && app.pdfViewer?.scrollMode !== SCROLL_WRAPPED && !container.classList.contains("pdfPresentationMode");
+    const next = usable ? Math.round(container.clientWidth * DESK_ROOM) : 0;
     if (next === room) return;
-    const left = container.scrollLeft;
+    const before = firstPage?.getBoundingClientRect().left;
     // On the container: PDF.js rewrites the viewer element's own style and classes.
     container.style.setProperty("--md-desk-room", `${next}px`);
     container.classList.toggle("mdWide", next > 0);
-    // Keep what is on screen in place while the room appears or goes away.
-    container.scrollLeft = left + next - room;
     room = next;
+    // Keep the pages where they were on screen while the room appears or goes away.
+    if (firstPage) container.scrollLeft += firstPage.getBoundingClientRect().left - before;
   };
   let queued = false;
   const updateSoon = () => {
@@ -148,6 +167,20 @@ const setUpDesk = (container, viewer, eventBus) => {
       update();
     });
   };
+  // Pages that sat in the middle stay there when zooming. PDF.js has already resized them by
+  // now, but not yet told anyone of its new scroll position, so this reads the old one.
+  let centered = true;
+  container.addEventListener(
+    "scroll",
+    () => {
+      centered = Math.abs(offCenter()) < 4;
+    },
+    { passive: true },
+  );
+  eventBus.on("scalechanging", () => {
+    recenter ||= centered;
+  });
+
   for (const name of [
     "scalechanging",
     "pagesloaded",
@@ -155,6 +188,7 @@ const setUpDesk = (container, viewer, eventBus) => {
     "scrollmodechanged",
     "spreadmodechanged",
     "resize",
+    "presentationmodechanged",
   ]) {
     eventBus.on(name, updateSoon);
   }
