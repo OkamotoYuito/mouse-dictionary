@@ -34,14 +34,19 @@ if (embeddedData) {
   document.getElementById("toolbarViewerRight").append(close);
 }
 
-const loadMouseDictionary = () =>
+const loadScript = (path) =>
   new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = chrome.runtime.getURL("main.js");
+    script.src = chrome.runtime.getURL(path);
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Failed to load Mouse Dictionary."));
+    script.onerror = () => reject(new Error(`Failed to load ${path}.`));
     document.head.appendChild(script);
   });
+
+const loadMouseDictionary = () => loadScript("main.js");
+
+// Emphasizes recorded words and shows their meanings on hover.
+loadScript("options/pdf/web/vocabulary.js").catch((error) => console.error("Mouse Dictionary:", error));
 
 const getPdfData = (id) =>
   new Promise((resolve, reject) => {

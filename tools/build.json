@@ -7,6 +7,7 @@
   "entries": {
     "src/main/start.js": "main.js",
     "src/options/app.tsx": "options/options.js",
-    "src/background/background.js": "background.js"
+    "src/background/background.js": "background.js",
+    "src/pdf-viewer/vocabulary.js": "options/pdf/web/vocabulary.js"
   }
 }
