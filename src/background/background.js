@@ -29,10 +29,11 @@ if (BROWSER === "chrome") {
   });
 }
 
-// PLaMo is used unless turned off; Azure, when configured, covers for it while the local server is down.
+// Azure is used only after the user explicitly enables its potentially billable fallback.
 const translateText = async (text) => {
   const { [PLAMO_TRANSLATOR_KEY]: plamo, [AZURE_TRANSLATOR_KEY]: azure } =
     (await storage.local.get([PLAMO_TRANSLATOR_KEY, AZURE_TRANSLATOR_KEY])) ?? {};
+  const useAzure = azure?.allowUse === true && Boolean(azure.key?.trim());
   if (plamo?.enabled !== false) {
     // The astronomy glossary and the recorded words are on unless turned off.
     const astronomy = plamo?.astronomy !== false;
@@ -43,9 +44,9 @@ const translateText = async (text) => {
       glossaryFor,
       context: astronomy ? ASTRONOMY_CONTEXT : "",
     });
-    if (result.translation || !azure?.key?.trim()) return { ...result, engine: "PLaMo" };
+    if (result.translation || !useAzure) return { ...result, engine: "PLaMo" };
   }
-  return { ...(await translateWithAzure(text, azure)), engine: "Azure" };
+  return useAzure ? { ...(await translateWithAzure(text, azure)), engine: "Azure" } : {};
 };
 
 // cross-extension messaging

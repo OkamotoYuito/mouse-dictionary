@@ -98,8 +98,10 @@ const JapaneseTextResource: TextResource = {
   azureTranslatorKey: "キー（空欄ならAzureは使いません）",
   azureTranslatorRegion: "リージョン（Azureの「キーとエンドポイント」に表示される場所。例: japaneast）",
   azureTranslatorRegionRequired: "リージョンが未入力です。入力するまでAzureは使われません。",
+  azureTranslatorAllowUse: "Azure Translatorへの切り替えを許可する（利用量により課金）",
+  azureTranslatorAllowUseDesc: "オフの間は、PLaMoが使えない場合に課金APIへ送信せず、Chrome内蔵翻訳を使います。",
   azureTranslatorHelp:
-    "キーはこのブラウザにのみ保存され、同期されません。無料枠（F0）は月200万文字までで、使い切るとChrome内蔵の翻訳に切り替わります。",
+    "キーはこのブラウザにのみ保存され、同期されません。Azureへの送信は上のスイッチをオンにした場合だけ行います。",
   savedPdfList: "保存したPDF",
   noSavedPdf: "保存したPDFはありません",
   openSavedPdf: "開く",
@@ -140,7 +142,7 @@ const JapaneseTextResource: TextResource = {
   translationDisplayTitle: "表示",
   translationEngineTitle: "翻訳エンジン",
   translationEngineDesc:
-    "PLaMo → Azure → Chrome内蔵の順に、使えるものを使います。この項目は入力するとすぐ保存され、このブラウザだけに残ります。",
+    "PLaMo → Chrome内蔵の順に使います。Azureは翻訳タブ内の許可スイッチをオンにした場合だけ使います。設定はこのブラウザだけに保存されます。",
   plamoTranslatorEnabledDesc: "手元のMacで動かすローカルサーバーで翻訳します。数式（TeX）をそのまま扱えます。",
   azureTranslatorTitle: "Azure AI Translator",
   pdfViewerTitle: "PDFビューア",

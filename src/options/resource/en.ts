@@ -103,8 +103,11 @@ const EnglishTextResource: TextResource = {
   azureTranslatorKey: "Key (Azure is not used while this is empty)",
   azureTranslatorRegion: "Region (the location shown in 'Keys and Endpoint', e.g. japaneast)",
   azureTranslatorRegionRequired: "The region is empty. Azure is not used until it is entered.",
+  azureTranslatorAllowUse: "Allow Azure Translator fallback (usage may incur charges)",
+  azureTranslatorAllowUseDesc:
+    "When off, failed PLaMo requests use Chrome's built-in translator without sending text to a billable API.",
   azureTranslatorHelp:
-    "The key is stored only in this browser and is not synced. The free tier (F0) allows 2 million characters per month; after that, the built-in Chrome translator is used.",
+    "The key is stored only in this browser and is not synced. Azure receives text only when the switch above is on.",
   savedPdfList: "Saved PDFs",
   noSavedPdf: "No saved PDFs",
   openSavedPdf: "Open",
@@ -145,7 +148,7 @@ const EnglishTextResource: TextResource = {
   translationDisplayTitle: "Display",
   translationEngineTitle: "Translation engine",
   translationEngineDesc:
-    "PLaMo, then Azure, then Chrome's built-in translator, whichever is available. These fields are saved as you type and stay in this browser.",
+    "Uses PLaMo, then Chrome's built-in translator. Azure is used only when its explicit permission switch is on. Settings stay in this browser.",
   plamoTranslatorEnabledDesc: "Translate with a local server on this Mac. TeX math is kept as is.",
   azureTranslatorTitle: "Azure AI Translator",
   pdfViewerTitle: "PDF viewer",

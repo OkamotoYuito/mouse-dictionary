@@ -23,7 +23,7 @@ const PLAMO_COMMAND = "llama-server -hf pfnet/plamo-3-translate-2b-GGUF:Q4_K_M -
 
 export const TranslationSettings: React.FC<Props> = (props) => {
   const update = makeUpdate(props.onUpdate);
-  const [azure, setAzure] = useState({ key: "", region: "" });
+  const [azure, setAzure] = useState({ key: "", region: "", allowUse: false });
   const [plamo, setPlamo] = useState({ enabled: true, url: "", astronomy: true, recordedWords: true });
 
   useEffect(() => {
@@ -31,7 +31,8 @@ export const TranslationSettings: React.FC<Props> = (props) => {
     storage.local
       .pick(AZURE_TRANSLATOR_KEY)
       .then((config) => {
-        if (mounted && config) setAzure({ key: config.key ?? "", region: config.region ?? "" });
+        if (mounted && config)
+          setAzure({ key: config.key ?? "", region: config.region ?? "", allowUse: config.allowUse === true });
       })
       .catch(() => undefined);
     storage.local
@@ -118,6 +119,12 @@ export const TranslationSettings: React.FC<Props> = (props) => {
       )}
 
       <Card title={res.get("azureTranslatorTitle")} description={res.get("azureTranslatorHelp")}>
+        <SwitchRow
+          title={res.get("azureTranslatorAllowUse")}
+          description={res.get("azureTranslatorAllowUseDesc")}
+          checked={azure.allowUse}
+          onChange={(allowUse) => updateAzure({ allowUse })}
+        />
         <div className="field">
           <label htmlFor="azureTranslatorKey">{res.get("azureTranslatorKey")}</label>
           <input
