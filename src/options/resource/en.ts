@@ -97,6 +97,10 @@ const EnglishTextResource: TextResource = {
   persistPdf: "Save web PDFs permanently (delete after 7 days without use)",
   translationSettings: "Translation settings",
   showTranslationByDefault: "Show selected-text translation by default",
+  plamoTranslatorEnabled: "Translate with PLaMo 3 Translate on a local server (takes priority over Azure)",
+  plamoTranslatorUrl: "PLaMo server URL (empty means http://127.0.0.1:8080)",
+  plamoTranslatorHelp:
+    "Start it with llama-server -hf pfnet/plamo-3-translate-2b-GGUF:Q4_K_M -c 4096 -np 1 --port 8080. When the server cannot be reached, the built-in Chrome translator is used.",
   azureTranslatorKey: "Azure AI Translator key (leave empty to use the built-in Chrome translator)",
   azureTranslatorRegion:
     "Azure AI Translator region (required; the location shown in 'Keys and Endpoint', e.g. japaneast)",

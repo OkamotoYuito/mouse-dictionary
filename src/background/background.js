@@ -8,6 +8,7 @@ import { convertToBase64 } from "../main/lib/base64";
 import storage from "../main/lib/storage";
 import { AZURE_TRANSLATOR_KEY, translateWithAzure } from "./azure-translator";
 import pdfCache from "./pdf-cache";
+import { PLAMO_TRANSLATOR_KEY, translateWithPlamo } from "./plamo-translator";
 import ExpiringQueue from "./queue";
 import { suggestMeaning } from "./suggestions";
 import generateUniqueId from "./unique";
@@ -165,8 +166,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         break;
       }
       storage.local
-        .pick(AZURE_TRANSLATOR_KEY)
-        .then((config) => translateWithAzure(request.text, config))
+        .get([PLAMO_TRANSLATOR_KEY, AZURE_TRANSLATOR_KEY])
+        .then(({ [PLAMO_TRANSLATOR_KEY]: plamo, [AZURE_TRANSLATOR_KEY]: azure } = {}) =>
+          plamo?.enabled
+            ? translateWithPlamo(request.text, plamo).then((result) => ({ ...result, engine: "PLaMo" }))
+            : translateWithAzure(request.text, azure).then((result) => ({ ...result, engine: "Azure" })),
+        )
         .then(sendResponse, () => sendResponse({}));
       return true;
     }

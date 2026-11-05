@@ -9,7 +9,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "https://api.excelapi.org/*", "https://ja.wiktionary.org/*", "https://en.wiktionary.org/*", "https://jisho.org/*", "https://en.wikipedia.org/*", "https://lsd-project.jp/*", "https://api.cognitive.microsofttranslator.com/*"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "https://api.excelapi.org/*", "https://ja.wiktionary.org/*", "https://en.wiktionary.org/*", "https://jisho.org/*", "https://en.wikipedia.org/*", "https://lsd-project.jp/*", "https://api.cognitive.microsofttranslator.com/*", "http://127.0.0.1/*", "http://localhost/*"],
   "background": {
     "scripts": ["background.js"]
   },

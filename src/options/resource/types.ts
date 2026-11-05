@@ -80,6 +80,9 @@ export type TextResource = {
   persistPdf: string;
   translationSettings: string;
   showTranslationByDefault: string;
+  plamoTranslatorEnabled: string;
+  plamoTranslatorUrl: string;
+  plamoTranslatorHelp: string;
   azureTranslatorKey: string;
   azureTranslatorRegion: string;
   azureTranslatorRegionRequired: string;

@@ -156,7 +156,7 @@ const create = (settings) => {
     }
     text = prepareText(text);
     translationStatus.textContent = "翻訳しています…";
-    const azure = await new Promise((resolve) => {
+    const remote = await new Promise((resolve) => {
       try {
         chrome.runtime.sendMessage({ type: "translate_text", text }, (response) => {
           resolve(chrome.runtime.lastError ? null : response);
@@ -166,12 +166,12 @@ const create = (settings) => {
       }
     });
     if (request !== translationRequestId) return;
-    if (azure?.translation) {
-      translationResult.textContent = azure.translation;
-      translationStatus.textContent = "英語 → 日本語（Azure）";
+    if (remote?.translation) {
+      translationResult.textContent = remote.translation;
+      translationStatus.textContent = `英語 → 日本語（${remote.engine ?? "Azure"}）`;
       return;
     }
-    const fallbackNote = azure?.error ? `（${azure.error}。内蔵翻訳を使用）` : "";
+    const fallbackNote = remote?.error ? `（${remote.error}。内蔵翻訳を使用）` : "";
     if (!("Translator" in globalThis)) {
       translationStatus.textContent = `このChromeではTranslator APIを利用できません${fallbackNote}`;
       return;
